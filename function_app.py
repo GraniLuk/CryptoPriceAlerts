@@ -9,6 +9,10 @@ import json
 from azure.storage.fileshare import ShareFileClient
 import locale
 import os
+from dotenv import load_dotenv
+
+# Load environment variables at startup
+load_dotenv()
 
 app = func.FunctionApp()
 
