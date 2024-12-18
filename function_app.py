@@ -44,7 +44,6 @@ ASSET_TO_API_ID = {
     "ETH": "ethereum",
     "BUSD": "busd",
     "CHZ": "chiliz",
-    "COMP": "compound-governance-token",
     "HBAR": "hedera-hashgraph",
     "USDT": "tether",
     "XRP": "ripple",
