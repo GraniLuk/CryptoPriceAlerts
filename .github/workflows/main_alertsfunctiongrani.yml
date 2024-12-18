@@ -34,6 +34,22 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Create function folders if not exist
+        run: |
+          mkdir -p AlertsFunctionGrani
+          mkdir -p insert_new_alert_grani
+          mkdir -p get_all_alerts
+          mkdir -p shared_code
+
+      - name: Clean up unnecessary files
+        run: |
+          rm -rf .git
+          rm -rf .github
+          rm -rf .venv
+          rm -rf __pycache__
+          rm -rf .pytest_cache
+          find . -type d -name "__pycache__" -exec rm -r {} +
+
       # Optional: Add step to run tests here
 
       - name: Zip artifact for deployment
@@ -78,4 +94,5 @@ jobs:
           slot-name: 'Production'
           package: '.'
           scm-do-build-during-deployment: true
+          enable-oryx-build: true
           
