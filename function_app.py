@@ -8,6 +8,7 @@ import requests
 import json
 from azure.storage.fileshare import ShareFileClient
 import locale
+import os
 
 app = func.FunctionApp()
 
@@ -84,11 +85,9 @@ def get_crypto_price(symbol, api_key):
 
 def get_alerts_from_azure(file_name):
     try:
-        config = configparser.ConfigParser()
-        config.read('config.ini')
-        share_name = config.get('AZURE_STORAGE', 'ShareName')
-        storage_account_name = config.get('AZURE_STORAGE', 'StorageAccountName')
-        account_key = config.get('AZURE_STORAGE', 'StorageAccountKey')
+        share_name = os.environ["AZURE_STORAGE_SHARE_NAME"]
+        storage_account_name = os.environ["AZURE_STORAGE_STORAGE_ACCOUNT"]
+        account_key = os.environ["AZURE_STORAGE_STORAGE_ACCOUNT_KEY"]
         file_url = f"https://{storage_account_name}.file.core.windows.net/"
         
         # Create a ShareFileClient
@@ -111,11 +110,9 @@ def get_alerts_from_azure(file_name):
 
 def save_alerts_to_azure(file_name, alerts_content):
     try:
-        config = configparser.ConfigParser()
-        config.read('config.ini')
-        share_name = config.get('AZURE_STORAGE', 'ShareName')
-        storage_account_name = config.get('AZURE_STORAGE', 'StorageAccountName')
-        account_key = config.get('AZURE_STORAGE', 'StorageAccountKey')
+        share_name = os.environ["AZURE_STORAGE_SHARE_NAME"]
+        storage_account_name = os.environ["AZURE_STORAGE_STORAGE_ACCOUNT"]
+        account_key = os.environ["AZURE_STORAGE_STORAGE_ACCOUNT_KEY"]
         file_url = f"https://{storage_account_name}.file.core.windows.net/"
         
         # Create a ShareFileClient
@@ -141,12 +138,10 @@ def AlertsFunctionGrani(myTimer: func.TimerRequest) -> None:
     
     try:
         # Get connection string and bot token from app settings
-        config = configparser.ConfigParser()
-        config.read('config.ini')
-        telegram_enabled = config.getboolean('TELEGRAM', 'Enabled')
-        telegram_token = config.get('TELEGRAM', 'Token')
-        telegram_chat_ids = config.get('TELEGRAM', 'ChatIDs').split(',')
-        coingecko_api_key = config.get('COINGECKO', 'ApiKey')
+        telegram_enabled = os.environ["TELEGRAM_ENABLED"].lower() == "true"
+        telegram_token = os.environ["TELEGRAM_TOKEN"]
+        telegram_chat_ids = os.environ["TELEGRAM_CHAT_IDS"].split(',')
+        coingecko_api_key = os.environ["COINGECKO_API_KEY"]
 
         # Fetch alerts from Azure Storage File Shares
         alerts = get_alerts_from_azure('alerts.json')
@@ -263,11 +258,9 @@ def get_all_alerts(req: func.HttpRequest) -> func.HttpResponse:
         alerts = get_alerts_from_azure('alerts.json')
         # Filter out alerts that have already been triggered
         alerts = [alert for alert in alerts if not alert['triggered_date']]
-        config = configparser.ConfigParser()
-        config.read('config.ini')
-        telegram_enabled = config.getboolean('TELEGRAM', 'Enabled')
-        telegram_token = config.get('TELEGRAM', 'Token')
-        telegram_chat_ids = config.get('TELEGRAM', 'ChatIDs').split(',')
+        telegram_enabled = os.environ["TELEGRAM_ENABLED"].lower() == "true"
+        telegram_token = os.environ["TELEGRAM_TOKEN"]
+        telegram_chat_ids = os.environ["TELEGRAM_CHAT_IDS"].split(',')
         
         # Format alerts for Telegram message
         message = "Current Price Alerts:\n\n"
