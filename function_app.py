@@ -60,7 +60,6 @@ ASSET_TO_API_ID = {
     "ALGO": "algorand",
     "AKT": "akash-network",
     "KUJI": "kujira",
-    "RMRK": "rmrk",
     "DYM": "dymension",
     "GMT": "stepn",
     "GST": "green-satoshi-token-bsc"
