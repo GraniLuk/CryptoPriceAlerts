@@ -1,0 +1,30 @@
+[
+    {
+        "symbol": "BTC",
+        "price": 50000.0,
+        "operator": ">",
+        "description": "Alert when Bitcoin price goes above $50,000",
+        "triggered_date": "2024-11-28T20:00:53.131865"
+    },
+    {
+        "symbol": "BTC",
+        "price": 100000.0,
+        "operator": "<",
+        "description": "Alert when Bitcoin price goes below $100,000",
+        "triggered_date": "2024-11-28T20:00:54.656862"
+    },
+    {
+        "symbol": "BTC",
+        "price": 89200.0,
+        "operator": "<",
+        "description": "To, co musi si\u0119 wydarzy\u0107, abym znowu wr\u00f3ci\u0142 do long swing\u00f3w, to: A) wype\u0142nienie si\u0119 ramienia CD na Bitcoinie, B) wybicie ATH. Uwa\u017cam r\u00f3wnie\u017c, \u017ce dobrym miejscem dla d\u0142ugich pozycji na BTC b\u0119dzie dopiero zej\u015bcie w okolice $89k. https://x.com/forestTrader_PL/status/1862044101706752236",
+        "triggered_date": ""
+    },
+    {
+        "symbol": "BTC",
+        "price": 100000.0,
+        "operator": ">",
+        "description": "To, co musi si\u0119 wydarzy\u0107, abym znowu wr\u00f3ci\u0142 do long swing\u00f3w, to: A) wype\u0142nienie si\u0119 ramienia CD na Bitcoinie, B) wybicie ATH. Uwa\u017cam r\u00f3wnie\u017c, \u017ce dobrym miejscem dla d\u0142ugich pozycji na BTC b\u0119dzie dopiero zej\u015bcie w okolice $89k. https://x.com/forestTrader_PL/status/1862044101706752236",
+        "triggered_date": ""
+    }
+]
