@@ -4,13 +4,39 @@ import json
 from telegram import Bot
 import asyncio
 import requests
-from azure.storage.fileshare import ShareFileClient
+from azure.storage.fileshare import ShareFileClient, ShareServiceClient
+from azure.core.credentials import AzureNamedKeyCredential
 
 # Asset mapping dictionary
 ASSET_TO_API_ID = {
     "BTC": "bitcoin",
     "DOT": "polkadot",
-    # ... (rest of the mapping)
+    "BNB": "binancecoin",
+    "MATIC": "matic-network",
+    "FLOW": "flow",
+    "ATOM": "cosmos",
+    "OSMO": "osmosis",
+    "ETH": "ethereum",
+    "BUSD": "busd",
+    "CHZ": "chiliz",
+    "HBAR": "hedera-hashgraph",
+    "USDT": "tether",
+    "XRP": "ripple",
+    "SHIB": "shiba-inu",
+    "KCS": "kucoin-shares",
+    "OLE": "openleverage",
+    "LINK": "chainlink",
+    "PAXG": "pax-gold",
+    "RUNE": "thorchain",
+    "SAND": "the-sandbox",
+    "SOLO": "solo-coin",
+    "BETH": "binance-eth",
+    "ALGO": "algorand",
+    "AKT": "akash-network",
+    "KUJI": "kujira",
+    "DYM": "dymension",
+    "GMT": "stepn",
+    "GST": "green-satoshi-token-bsc"
 }
 
 async def send_telegram_message(telegram_enabled, telegram_token, telegram_chat_ids, message):
@@ -40,17 +66,28 @@ def get_alerts_from_azure(file_name):
         share_name = os.environ["AZURE_STORAGE_SHARE_NAME"]
         storage_account_name = os.environ["AZURE_STORAGE_STORAGE_ACCOUNT"]
         account_key = os.environ["AZURE_STORAGE_STORAGE_ACCOUNT_KEY"]
-        file_url = f"https://{storage_account_name}.file.core.windows.net/"
         
-        file_client = ShareFileClient(
-            account_url=file_url,
-            credential=account_key,
-            share_name=share_name,
-            file_path=file_name)
+        # Create credential with account name
+        credential = AzureNamedKeyCredential(storage_account_name, account_key)
         
+        # Create service client
+        service_client = ShareServiceClient(
+            account_url=f"https://{storage_account_name}.file.core.windows.net",
+            credential=credential
+        )
+        
+        # Get share client
+        share_client = service_client.get_share_client(share_name)
+        
+        # Get file client
+        file_client = share_client.get_file_client(file_name)
+        
+        # Download and process file
         download_stream = file_client.download_file()
         file_content = download_stream.readall().decode('utf-8')
-        return json.loads(file_content)
+        
+        alerts = json.loads(file_content)
+        return alerts
     except Exception as e:
         logging.error(f"Error in get_alerts_from_azure: {e}")
         return None
@@ -60,15 +97,26 @@ def save_alerts_to_azure(file_name, alerts_content):
         share_name = os.environ["AZURE_STORAGE_SHARE_NAME"]
         storage_account_name = os.environ["AZURE_STORAGE_STORAGE_ACCOUNT"]
         account_key = os.environ["AZURE_STORAGE_STORAGE_ACCOUNT_KEY"]
-        file_url = f"https://{storage_account_name}.file.core.windows.net/"
         
-        file_client = ShareFileClient(
-            account_url=file_url,
-            credential=account_key,
-            share_name=share_name,
-            file_path=file_name)
+        # Create credential with account name
+        credential = AzureNamedKeyCredential(storage_account_name, account_key)
         
+        # Create service client
+        service_client = ShareServiceClient(
+            account_url=f"https://{storage_account_name}.file.core.windows.net",
+            credential=credential
+        )
+        
+        # Get share client
+        share_client = service_client.get_share_client(share_name)
+        
+        # Get file client
+        file_client = share_client.get_file_client(file_name)
+        
+        # Convert alerts content to JSON string bytes
         json_content = json.dumps(alerts_content, indent=4).encode('utf-8')
+        
+        # Upload the updated content back to Azure Storage
         file_client.upload_file(json_content)
         logging.info(f"Alerts successfully saved to Azure Storage: {file_name}")
         
