@@ -7,7 +7,7 @@ yfinance
 pandas
 configparser
 prettytable
-python-telegram-bot
+python-telegram-bot==13.7
 azure-data-tables
 requests
 azure-storage-file-share
