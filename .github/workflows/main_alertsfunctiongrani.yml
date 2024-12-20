@@ -82,6 +82,13 @@ jobs:
           app-name: 'AlertsFunctionGrani'
           slot-name: 'Production'
           package: 'release.zip'
+          scm-do-build-during-deployment: true
+          enable-oryx-build: true
+
+      - name: 'Update Function App Settings'
+        uses: Azure/appservice-settings@v1
+        with:
+          app-name: 'AlertsFunctionGrani'
           app-settings-json: |
             {
               "TELEGRAM_TOKEN": "${{ secrets.TELEGRAM_TOKEN }}",
@@ -92,8 +99,6 @@ jobs:
               "AZURE_STORAGE_STORAGE_ACCOUNT": "${{ secrets.AZURE_STORAGE_STORAGE_ACCOUNT }}",
               "AZURE_STORAGE_STORAGE_ACCOUNT_KEY": "${{ secrets.AZURE_STORAGE_STORAGE_ACCOUNT_KEY }}"
             }
-          scm-do-build-during-deployment: true
-          enable-oryx-build: true
 
       - name: Install dependencies on Azure
         run: |
