@@ -89,16 +89,43 @@ jobs:
         uses: Azure/appservice-settings@v1
         with:
           app-name: 'AlertsFunctionGrani'
-          app-settings-json: |
+          mask-settings: true
+          app-settings-json: '[
             {
-              "TELEGRAM_TOKEN": "${{ secrets.TELEGRAM_TOKEN }}",
-              "TELEGRAM_ENABLED": "${{ secrets.TELEGRAM_ENABLED }}",
-              "TELEGRAM_CHAT_IDS": "${{ secrets.TELEGRAM_CHAT_IDS }}",
-              "COINGECKO_API_KEY": "${{ secrets.COINGECKO_API_KEY }}",
-              "AZURE_STORAGE_SHARE_NAME": "${{ secrets.AZURE_STORAGE_SHARE_NAME }}",
-              "AZURE_STORAGE_STORAGE_ACCOUNT": "${{ secrets.AZURE_STORAGE_STORAGE_ACCOUNT }}",
-              "AZURE_STORAGE_STORAGE_ACCOUNT_KEY": "${{ secrets.AZURE_STORAGE_STORAGE_ACCOUNT_KEY }}"
-            }
+              "name": "TELEGRAM_TOKEN",
+              "value": "${{ secrets.TELEGRAM_TOKEN }}",
+              "slotSetting": false
+            },
+            {
+              "name": "TELEGRAM_ENABLED",
+              "value": "${{ secrets.TELEGRAM_ENABLED }}",
+              "slotSetting": false
+            },
+            {
+              "name": "TELEGRAM_CHAT_IDS",
+              "value": "${{ secrets.TELEGRAM_CHAT_IDS }}",
+              "slotSetting": false
+            },
+            {
+              "name": "COINGECKO_API_KEY",
+              "value": "${{ secrets.COINGECKO_API_KEY }}",
+              "slotSetting": false
+            },
+            {
+              "name": "AZURE_STORAGE_SHARE_NAME",
+              "value": "${{ secrets.AZURE_STORAGE_SHARE_NAME }}",
+              "slotSetting": false
+            },
+            {
+              "name": "AZURE_STORAGE_STORAGE_ACCOUNT",
+              "value": "${{ secrets.AZURE_STORAGE_STORAGE_ACCOUNT }}",
+              "slotSetting": false
+            },
+            {
+              "name": "AZURE_STORAGE_STORAGE_ACCOUNT_KEY",
+              "value": "${{ secrets.AZURE_STORAGE_STORAGE_ACCOUNT_KEY }}",
+              "slotSetting": false
+            }]'
 
       - name: Install dependencies on Azure
         run: |
