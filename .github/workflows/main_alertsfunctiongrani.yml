@@ -26,21 +26,23 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Install dependencies (local check)
+      - name: Install dependencies
         run: |
+          python -m venv venv
+          source venv/bin/activate
+          pip install --upgrade pip
           pip install -r requirements.txt
-          pip show python-telegram-bot
+          # Freeze dependencies to ensure version consistency
+          pip freeze > requirements.txt
 
-      - name: Clean up unnecessary files
+      - name: Package app with dependencies
         run: |
-          rm -rf .git
-          rm -rf .github
-          rm -rf __pycache__
-          rm -rf .pytest_cache
-          find . -type d -name "__pycache__" -exec rm -r {} +
-
-      - name: Zip artifact for deployment
-        run: zip -r release.zip .
+          source venv/bin/activate
+          mkdir -p packaged_function
+          cp -r * packaged_function/
+          cp -r venv/lib/python${{ env.PYTHON_VERSION }}/site-packages/* packaged_function/
+          cd packaged_function
+          zip -r ../release.zip .
     
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
@@ -77,7 +79,7 @@ jobs:
         with:
           app-name: 'AlertsFunctionGrani'
           slot-name: 'Production'
-          package: '.'
+          package: 'release.zip'
           scm-do-build-during-deployment: true
           enable-oryx-build: true
           enable-dependency-installation: true
