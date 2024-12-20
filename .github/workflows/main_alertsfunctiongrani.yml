@@ -39,7 +39,9 @@ jobs:
         run: |
           source venv/bin/activate
           mkdir -p packaged_function
-          cp -r * packaged_function/
+          # Copy all files except the 'packaged_function' directory itself
+          shopt -s extglob
+          cp -r !(packaged_function) packaged_function/
           cp -r venv/lib/python${{ env.PYTHON_VERSION }}/site-packages/* packaged_function/
           cd packaged_function
           zip -r ../release.zip .
