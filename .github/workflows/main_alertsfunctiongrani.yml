@@ -82,9 +82,18 @@ jobs:
           app-name: 'AlertsFunctionGrani'
           slot-name: 'Production'
           package: 'release.zip'
+          app-settings-json: |
+            {
+              "TELEGRAM_TOKEN": "${{ secrets.TELEGRAM_TOKEN }}",
+              "TELEGRAM_ENABLED": "${{ secrets.TELEGRAM_ENABLED }}",
+              "TELEGRAM_CHAT_IDS": "${{ secrets.TELEGRAM_CHAT_IDS }}",
+              "COINGECKO_API_KEY": "${{ secrets.COINGECKO_API_KEY }}",
+              "AZURE_STORAGE_SHARE_NAME": "${{ secrets.AZURE_STORAGE_SHARE_NAME }}",
+              "AZURE_STORAGE_STORAGE_ACCOUNT": "${{ secrets.AZURE_STORAGE_STORAGE_ACCOUNT }}",
+              "AZURE_STORAGE_STORAGE_ACCOUNT_KEY": "${{ secrets.AZURE_STORAGE_STORAGE_ACCOUNT_KEY }}"
+            }
           scm-do-build-during-deployment: true
           enable-oryx-build: true
-          enable-dependency-installation: true
 
       - name: Install dependencies on Azure
         run: |
