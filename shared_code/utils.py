@@ -39,11 +39,17 @@ ASSET_TO_API_ID = {
     "GST": "green-satoshi-token-bsc"
 }
 
-async def send_telegram_message(telegram_enabled, telegram_token, telegram_chat_ids, message):
-    if telegram_enabled:
-        bot = Bot(token=telegram_token)
-        for chat_id in telegram_chat_ids:
-            await bot.send_message(chat_id=chat_id, text=f"{message}")
+async def send_telegram_message(telegram_enabled, telegram_token, chat_id, message):
+    if not telegram_enabled:
+        return
+        
+    bot = Bot(token=telegram_token)
+    try:
+        # Use await directly on send_message
+        await bot.send_message(chat_id=chat_id.strip(), text=message)
+    finally:
+        # Close bot session
+        await bot.session.close()
 
 def get_crypto_price(symbol, api_key):
     api_symbol = ASSET_TO_API_ID.get(symbol.upper())

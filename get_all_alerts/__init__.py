@@ -19,7 +19,7 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
         logging.info("Reading Telegram configuration...")
         telegram_enabled = os.environ["TELEGRAM_ENABLED"].lower() == "true"
         telegram_token = os.environ["TELEGRAM_TOKEN"]
-        telegram_chat_ids = os.environ["TELEGRAM_CHAT_IDS"].split(',')
+        telegram_chat_ids = os.environ["TELEGRAM_CHAT_IDS"]
         logging.info(f"Telegram enabled: {telegram_enabled}, Chat IDs count: {len(telegram_chat_ids)}")
         
         message = "Current Price Alerts:\n\n"
@@ -51,4 +51,4 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
             }),
             mimetype="application/json", 
             status_code=500
-        ) 
+        )

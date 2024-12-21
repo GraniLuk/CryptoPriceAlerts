@@ -14,7 +14,7 @@ async def main(mytimer: func.TimerRequest) -> None:
     try:
         telegram_enabled = os.environ["TELEGRAM_ENABLED"].lower() == "true"
         telegram_token = os.environ["TELEGRAM_TOKEN"]
-        telegram_chat_ids = os.environ["TELEGRAM_CHAT_IDS"].split(',')
+        telegram_chat_ids = os.environ["TELEGRAM_CHAT_IDS"]
         coingecko_api_key = os.environ["COINGECKO_API_KEY"]
 
         alerts = get_alerts_from_azure('alerts.json')
