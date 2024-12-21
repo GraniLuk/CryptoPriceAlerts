@@ -5,7 +5,7 @@ import os
 import asyncio
 from shared_code.utils import get_alerts_from_azure, send_telegram_message
 
-def main(req: func.HttpRequest) -> func.HttpResponse:
+async def main(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Python HTTP trigger function "get_all_alerts" processed a request.')
     
     try:
@@ -31,16 +31,8 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             message += "---------------\n"
         
         if telegram_enabled:
-            try:
-                logging.info("Setting up asyncio event loop for Telegram message...")
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                loop.run_until_complete(send_telegram_message(telegram_enabled, telegram_token, telegram_chat_ids, message))
-                loop.close()
-                logging.info("Successfully sent Telegram message")
-            except Exception as telegram_error:
-                logging.error(f"Failed to send Telegram message: {str(telegram_error)}")
-                logging.error(f"Telegram error details: {type(telegram_error).__name__}")
+            await send_telegram_message(telegram_enabled, telegram_token, telegram_chat_ids, message)
+
         
         return func.HttpResponse(
             body=json.dumps({"alerts": alerts}),
