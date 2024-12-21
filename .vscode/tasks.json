@@ -22,6 +22,27 @@
 				"command": "${config:azureFunctions.pythonVenv}/bin/python -m pip install -r requirements.txt"
 			},
 			"problemMatcher": []
+		},
+		{
+			"label": "start azurite",
+			"type": "shell",
+			"command": "azurite",
+			"isBackground": true,
+			"problemMatcher": {
+				"pattern": {
+					"regexp": "^$"
+				},
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": "Azurite Blob service is starting at",
+					"endsPattern": "Azurite Table service is successfully listening"
+				}
+			}
+		},
+		{
+			"label": "start azurite and func host",
+			"dependsOn": ["start azurite", "func: host start"],
+			"dependsOrder": "sequence"
 		}
 	]
 }

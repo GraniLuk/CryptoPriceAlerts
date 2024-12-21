@@ -9,7 +9,8 @@
                 "host": "localhost",
                 "port": 9091
             },
-            "preLaunchTask": "func: host start"
+            "preLaunchTask": "start azurite and func host",
+            "postDebugTask": "stop azurite"
         }
     ]
 }
