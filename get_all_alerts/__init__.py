@@ -5,16 +5,22 @@ import os
 import asyncio
 from shared_code.utils import get_alerts_from_azure, send_telegram_message
 
-async def main(req: func.HttpRequest) -> func.HttpResponse:
+def main(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Python HTTP trigger function "get_all_alerts" processed a request.')
     
     try:
+        logging.info("Attempting to fetch alerts from Azure...")
         alerts = get_alerts_from_azure('alerts.json')
-        alerts = [alert for alert in alerts if not alert['triggered_date']]
+        logging.info(f"Successfully retrieved {len(alerts)} alerts")
         
+        alerts = [alert for alert in alerts if not alert['triggered_date']]
+        logging.info(f"Filtered to {len(alerts)} non-triggered alerts")
+        
+        logging.info("Reading Telegram configuration...")
         telegram_enabled = os.environ["TELEGRAM_ENABLED"].lower() == "true"
         telegram_token = os.environ["TELEGRAM_TOKEN"]
         telegram_chat_ids = os.environ["TELEGRAM_CHAT_IDS"].split(',')
+        logging.info(f"Telegram enabled: {telegram_enabled}, Chat IDs count: {len(telegram_chat_ids)}")
         
         message = "Current Price Alerts:\n\n"
         for alert in alerts:
@@ -23,8 +29,18 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
             message += f"Operator: {alert['operator']}\n"
             message += f"Description: {alert['description']}\n"
             message += "---------------\n"
-            
-        await send_telegram_message(telegram_enabled, telegram_token, telegram_chat_ids, message)
+        
+        if telegram_enabled:
+            try:
+                logging.info("Setting up asyncio event loop for Telegram message...")
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                loop.run_until_complete(send_telegram_message(telegram_enabled, telegram_token, telegram_chat_ids, message))
+                loop.close()
+                logging.info("Successfully sent Telegram message")
+            except Exception as telegram_error:
+                logging.error(f"Failed to send Telegram message: {str(telegram_error)}")
+                logging.error(f"Telegram error details: {type(telegram_error).__name__}")
         
         return func.HttpResponse(
             body=json.dumps({"alerts": alerts}),
@@ -34,8 +50,13 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
         
     except Exception as e:
         logging.error(f"Error in get_all_alerts: {str(e)}")
+        logging.error(f"Error type: {type(e).__name__}")
+        logging.error(f"Error details: ", exc_info=True)  # This will log the full stack trace
         return func.HttpResponse(
-            body=json.dumps({"error": str(e)}),
+            body=json.dumps({
+                "error": str(e),
+                "error_type": type(e).__name__
+            }),
             mimetype="application/json", 
             status_code=500
         ) 
