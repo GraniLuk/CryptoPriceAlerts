@@ -44,12 +44,9 @@ async def send_telegram_message(telegram_enabled, telegram_token, chat_id, messa
         return
         
     bot = Bot(token=telegram_token)
-    try:
-        # Use await directly on send_message
+    async with bot:  # This handles cleanup automatically
         await bot.send_message(chat_id=chat_id.strip(), text=message)
-    finally:
-        # Close bot session
-        await bot.session.close()
+
 
 def get_crypto_price(symbol, api_key):
     api_symbol = ASSET_TO_API_ID.get(symbol.upper())
