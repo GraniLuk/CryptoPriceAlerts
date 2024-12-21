@@ -89,7 +89,6 @@ jobs:
         uses: Azure/appservice-settings@v1
         with:
           app-name: 'AlertsFunctionGrani'
-          mask-settings: true
           app-settings-json: '[
             {
               "name": "TELEGRAM_TOKEN",
