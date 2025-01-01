@@ -9,6 +9,7 @@ from shared_code.utils import (
     save_alerts_to_azure,
     send_telegram_message
 )
+from shared_code.price_cache import price_cache
 
 async def main(mytimer: func.TimerRequest) -> None:
     try:
@@ -27,7 +28,12 @@ async def main(mytimer: func.TimerRequest) -> None:
         any_alert_triggered = False
         
         for alert in alerts:
-            current_price = get_crypto_price(alert['symbol'], coingecko_api_key)
+            # Check cache first
+            current_price = price_cache.get_price(alert['symbol'])
+            if current_price is None:
+                # Fetch price from API if not cached
+                current_price = get_crypto_price(alert['symbol'], coingecko_api_key)
+                price_cache.set_price(alert['symbol'], current_price)
             
             if current_price:
                 condition_met = False
@@ -52,4 +58,4 @@ async def main(mytimer: func.TimerRequest) -> None:
             save_alerts_to_azure('alerts.json', alerts)
                     
     except Exception as e:
-        logging.error(f"Error in AlertsFunction: {str(e)}") 
+        logging.error(f"Error in AlertsFunction: {str(e)}")
