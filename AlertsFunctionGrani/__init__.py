@@ -28,32 +28,65 @@ async def main(mytimer: func.TimerRequest) -> None:
         any_alert_triggered = False
         
         for alert in alerts:
-            # Check cache first
-            current_price = price_cache.get_price(alert['symbol'])
-            if current_price is None:
-                # Fetch price from API if not cached
-                current_price = get_crypto_price(alert['symbol'], coingecko_api_key)
-                price_cache.set_price(alert['symbol'], current_price)
+            condition_met = False
             
-            if current_price:
-                condition_met = False
-                
-                if alert['operator'] == ">" and current_price > alert['price']:
-                    condition_met = True
-                elif alert['operator'] == "<" and current_price < alert['price']:
-                    condition_met = True
-                
-                if condition_met:
-                    message = f"🚨 Alert for {alert['symbol']}!\n"
-                    message += f"Current price: ${current_price}\n"
-                    message += f"Alert condition: ${alert['price']} {alert['operator']}\n"
-                    message += f"Description: {alert['description']}"
-                    alert['triggered_date'] = datetime.now().isoformat()
-                    any_alert_triggered = True
+            if alert.get('type') == 'ratio':
+                # Handle ratio alerts
+                price1 = price_cache.get_price(alert['symbol1'])
+                if price1 is None:
+                    price1 = get_crypto_price(alert['symbol1'], coingecko_api_key)
+                    price_cache.set_price(alert['symbol1'], price1)
                     
-                    await send_telegram_message(telegram_enabled, telegram_token, telegram_chat_ids, message)
-                    logging.info(f"Alert sent for {alert['symbol']}")
-        
+                price2 = price_cache.get_price(alert['symbol2'])
+                if price2 is None:
+                    price2 = get_crypto_price(alert['symbol2'], coingecko_api_key)
+                    price_cache.set_price(alert['symbol2'], price2)
+                    
+                if price1 and price2 and price2 != 0:
+                    ratio = price1 / price2
+                    if alert['operator'] == ">" and ratio > alert['price']:
+                        condition_met = True
+                    elif alert['operator'] == "<" and ratio < alert['price']:
+                        condition_met = True
+                        
+                    if condition_met:
+                        message = f"🚨 Ratio Alert for {alert['symbol1']}/{alert['symbol2']}!\n"
+                        message += f"Current ratio: {ratio:.4f}\n"
+                        message += f"Alert condition: {alert['price']} {alert['operator']}\n"
+                        message += f"Current prices:\n"
+                        message += f"{alert['symbol1']}: ${price1:.2f}\n"
+                        message += f"{alert['symbol2']}: ${price2:.2f}\n"
+                        message += f"Description: {alert['description']}"
+                        alert['triggered_date'] = datetime.now().isoformat()
+                        any_alert_triggered = True
+                        
+                        await send_telegram_message(telegram_enabled, telegram_token, telegram_chat_ids, message)
+                        logging.info(f"Ratio alert sent for {alert['symbol1']}/{alert['symbol2']}")
+            
+            else:
+                # Handle existing single symbol alerts
+                current_price = price_cache.get_price(alert['symbol'])
+                if current_price is None:
+                    current_price = get_crypto_price(alert['symbol'], coingecko_api_key)
+                    price_cache.set_price(alert['symbol'], current_price)
+                
+                if current_price:
+                    if alert['operator'] == ">" and current_price > alert['price']:
+                        condition_met = True
+                    elif alert['operator'] == "<" and current_price < alert['price']:
+                        condition_met = True
+                    
+                    if condition_met:
+                        message = f"🚨 Alert for {alert['symbol']}!\n"
+                        message += f"Current price: ${current_price}\n"
+                        message += f"Alert condition: ${alert['price']} {alert['operator']}\n"
+                        message += f"Description: {alert['description']}"
+                        alert['triggered_date'] = datetime.now().isoformat()
+                        any_alert_triggered = True
+                        
+                        await send_telegram_message(telegram_enabled, telegram_token, telegram_chat_ids, message)
+                        logging.info(f"Alert sent for {alert['symbol']}")
+
         if any_alert_triggered:
             save_alerts_to_azure('alerts.json', alerts)
                     

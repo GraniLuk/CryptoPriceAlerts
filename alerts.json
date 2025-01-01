@@ -26,5 +26,14 @@
         "operator": ">",
         "description": "To, co musi si\u0119 wydarzy\u0107, abym znowu wr\u00f3ci\u0142 do long swing\u00f3w, to: A) wype\u0142nienie si\u0119 ramienia CD na Bitcoinie, B) wybicie ATH. Uwa\u017cam r\u00f3wnie\u017c, \u017ce dobrym miejscem dla d\u0142ugich pozycji na BTC b\u0119dzie dopiero zej\u015bcie w okolice $89k. https://x.com/forestTrader_PL/status/1862044101706752236",
         "triggered_date": ""
+    },
+    {
+        "type": "ratio",
+        "symbol1": "BTC",
+        "symbol2": "ETH",
+        "price": 1.0,
+        "operator": ">",
+        "description": "Alert when BTC/ETH ratio goes above 1",
+        "triggered_date": ""
     }
 ]

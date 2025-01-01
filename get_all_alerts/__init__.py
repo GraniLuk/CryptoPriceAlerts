@@ -22,18 +22,33 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
         telegram_chat_ids = os.environ["TELEGRAM_CHAT_IDS"]
         logging.info(f"Telegram enabled: {telegram_enabled}, Chat IDs count: {len(telegram_chat_ids)}")
         
-        message = "Current Price Alerts:\n\n"
-        for alert in alerts:
-            message += f"Symbol: ${alert['symbol']}\n"
-            message += f"Price: ${alert['price']}\n"
-            message += f"Operator: {alert['operator']}\n"
-            message += f"Description: {alert['description']}\n"
-            message += "---------------\n"
+        message = "📊 Current Price Alerts:\n\n"
+        
+        # Group alerts by type
+        single_alerts = [a for a in alerts if a.get('type') != 'ratio']
+        ratio_alerts = [a for a in alerts if a.get('type') == 'ratio']
+        
+        if single_alerts:
+            message += "🎯 Single Symbol Alerts:\n"
+            for alert in single_alerts:
+                message += f"Symbol: ${alert['symbol']}\n"
+                message += f"Price: ${alert['price']}\n"
+                message += f"Operator: {alert['operator']}\n"
+                message += f"Description: {alert['description']}\n"
+                message += "---------------\n"
+        
+        if ratio_alerts:
+            message += "\n📈 Ratio Alerts:\n"
+            for alert in ratio_alerts:
+                message += f"Pair: {alert['symbol1']}/{alert['symbol2']}\n"
+                message += f"Ratio: {alert['price']}\n"
+                message += f"Operator: {alert['operator']}\n"
+                message += f"Description: {alert['description']}\n"
+                message += "---------------\n"
         
         if telegram_enabled:
             await send_telegram_message(telegram_enabled, telegram_token, telegram_chat_ids, message)
 
-        
         return func.HttpResponse(
             body=json.dumps({"alerts": alerts}),
             mimetype="application/json",
