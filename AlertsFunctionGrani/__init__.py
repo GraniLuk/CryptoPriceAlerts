@@ -89,6 +89,8 @@ async def main(mytimer: func.TimerRequest) -> None:
 
         if any_alert_triggered:
             save_alerts_to_azure('alerts.json', alerts)
+        
+        price_cache.clear()
                     
     except Exception as e:
         logging.error(f"Error in AlertsFunction: {str(e)}")
