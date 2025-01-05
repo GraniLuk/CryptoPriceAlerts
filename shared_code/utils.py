@@ -2,9 +2,8 @@ import logging
 import os
 import json
 from telegram import Bot
-import asyncio
 import requests
-from azure.storage.fileshare import ShareFileClient, ShareServiceClient
+from azure.storage.fileshare import ShareServiceClient
 from azure.core.credentials import AzureNamedKeyCredential
 from datetime import datetime
 
