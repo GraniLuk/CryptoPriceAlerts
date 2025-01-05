@@ -6,6 +6,7 @@ import asyncio
 import requests
 from azure.storage.fileshare import ShareFileClient, ShareServiceClient
 from azure.core.credentials import AzureNamedKeyCredential
+from datetime import datetime
 
 # Asset mapping dictionary
 ASSET_TO_API_ID = {
@@ -125,3 +126,4 @@ def save_alerts_to_azure(file_name, alerts_content):
         
     except Exception as e:
         logging.error(f"Error in save_alerts_to_azure: {e}") 
+

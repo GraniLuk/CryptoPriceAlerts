@@ -2,7 +2,6 @@ import logging
 import azure.functions as func
 import json
 import os
-import asyncio
 from shared_code.utils import get_alerts_from_azure, send_telegram_message
 
 async def main(req: func.HttpRequest) -> func.HttpResponse:
