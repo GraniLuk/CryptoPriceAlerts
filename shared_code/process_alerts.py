@@ -2,7 +2,7 @@ from datetime import datetime
 import logging
 import os
 
-from shared_code import price_cache
+from shared_code.price_cache import price_cache
 from shared_code.utils import get_alerts_from_azure, get_crypto_price, save_alerts_to_azure, send_telegram_message
 
 
