@@ -62,7 +62,7 @@ async def process_alerts():
                 # Handle existing single symbol alerts
                 current_price = price_cache.get_price(alert['symbol'])
                 if current_price is None:
-                    current_price = get_crypto_price_binance(alert['symbol'], coingecko_api_key)
+                    current_price = get_crypto_price_binance(alert['symbol'])
                     price_cache.set_price(alert['symbol'], current_price)
                 
                 if current_price:
