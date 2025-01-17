@@ -3,7 +3,8 @@ import logging
 import os
 
 from shared_code.price_cache import price_cache
-from shared_code.utils import get_alerts_from_azure, get_crypto_price, get_crypto_price_binance, save_alerts_to_azure, send_telegram_message
+from shared_code.utils import get_alerts_from_azure, save_alerts_to_azure, send_telegram_message
+from shared_code.price_check import get_crypto_price
 
 
 async def process_alerts():
@@ -62,7 +63,7 @@ async def process_alerts():
                 # Handle existing single symbol alerts
                 current_price = price_cache.get_price(alert['symbol'])
                 if current_price is None:
-                    current_price = get_crypto_price_binance(alert['symbol'])
+                    current_price = get_crypto_price(alert['symbol'])
                     price_cache.set_price(alert['symbol'], current_price)
                 
                 if current_price:
