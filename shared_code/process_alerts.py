@@ -30,12 +30,12 @@ async def process_alerts():
                 # Handle ratio alerts
                 price1 = price_cache.get_price(alert['symbol1'])
                 if price1 is None:
-                    price1 = get_crypto_price(alert['symbol1'], coingecko_api_key)
+                    price1 = get_crypto_price(alert['symbol1'])
                     price_cache.set_price(alert['symbol1'], price1)
                     
                 price2 = price_cache.get_price(alert['symbol2'])
                 if price2 is None:
-                    price2 = get_crypto_price(alert['symbol2'], coingecko_api_key)
+                    price2 = get_crypto_price(alert['symbol2'])
                     price_cache.set_price(alert['symbol2'], price2)
                     
                 if price1 and price2 and price2 != 0:
