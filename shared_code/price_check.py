@@ -1,4 +1,5 @@
 import logging
+import os
 import requests
 
 # Asset mapping dictionary
@@ -38,6 +39,8 @@ KUCOIN_SYMBOLS = {'AKT', 'KCS'}
 def get_crypto_price(symbol):
     if symbol in KUCOIN_SYMBOLS:
         return get_crypto_price_kucoin(symbol)
+    if symbol == 'GST':
+        return get_gst_bsc_price_from_coinmarketcap()
     else:
         return get_crypto_price_binance(symbol)
 
@@ -83,7 +86,7 @@ def get_crypto_price_kucoin(symbol):
         response = requests.get(url)
         if response.status_code == 200:
             data = response.json()
-            if data.get('code') == '200':
+            if data.get('code') == '200000':
                 logging.info(f"Response from KuCoin: {data}")
                 return float(data['data']['price']) if 'data' in data and 'price' in data['data'] else None
             else:
@@ -91,6 +94,61 @@ def get_crypto_price_kucoin(symbol):
                 return None
         else:
             logging.error(f"Error fetching price for {symbol}: {response.status_code}")
+            return None
+    except requests.RequestException as e:
+        logging.error(f"Request exception occurred: {e}")
+        return None
+    
+def get_crypto_price_coinmarketcap(symbol, api_key):
+    url = f"https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest"
+    headers = {
+        'Accepts': 'application/json',
+        'X-CMC_PRO_API_KEY': api_key,
+    }
+    params = {
+        'symbol': symbol.upper(),
+        'convert': 'USD'
+    }
+
+    try:
+        response = requests.get(url, headers=headers, params=params)
+        if response.status_code == 200:
+            data = response.json()
+            logging.info(f"Response from CoinMarketCap: {data}")
+            if 'data' in data and symbol.upper() in data['data']:
+                return float(data['data'][symbol.upper()]['quote']['USD']['price'])
+            else:
+                logging.error(f"Symbol '{symbol}' not found in CoinMarketCap data")
+                return None
+        else:
+            logging.error(f"Error fetching price for {symbol}: {response.status_code} - {response.text}")
+            return None
+    except requests.RequestException as e:
+        logging.error(f"Request exception occurred: {e}")
+        return None
+    
+def get_gst_bsc_price_from_coinmarketcap():
+    api_key = os.environ["COINMARKETCAP_API_KEY"]
+    url = "https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest"
+    
+    headers = {
+        'Accepts': 'application/json',
+        'X-CMC_PRO_API_KEY': api_key,
+    }
+    
+    params = {
+        'id': '20236',  # Use the unique CoinMarketCap ID for GST on BSC
+        'convert': 'USD'
+    }
+    
+    try:
+        response = requests.get(url, headers=headers, params=params)
+        if response.status_code == 200:
+            data = response.json()
+            logging.info(f"Response from CoinMarketCap: {data}")
+            return float(data['data']['20236']['quote']['USD']['price'])  # Extract price using ID
+        else:
+            logging.error(f"Error fetching price for GST on BSC: {response.status_code} - {response.text}")
             return None
     except requests.RequestException as e:
         logging.error(f"Request exception occurred: {e}")

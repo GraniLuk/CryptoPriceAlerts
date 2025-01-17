@@ -1,4 +1,5 @@
 from datetime import datetime
+import json
 import logging
 import os
 
@@ -14,8 +15,10 @@ async def process_alerts():
         telegram_chat_ids = os.environ["TELEGRAM_CHAT_IDS"]
         coingecko_api_key = os.environ["COINGECKO_API_KEY"]
 
+        # with open('alerts.json', 'r') as file:  # Replace 'data.json' with your file name
+        #     alerts = json.load(file)
         alerts = get_alerts_from_azure('alerts.json')
-        
+
         if alerts is None:
             logging.error("Failed to get alerts from Azure Storage.")
             return
