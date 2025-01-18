@@ -4,6 +4,7 @@ import json
 from telegram import Bot
 from azure.storage.fileshare import ShareServiceClient
 from azure.core.credentials import AzureNamedKeyCredential
+from telegram_logging_handler import app_logger
 
 async def send_telegram_message(telegram_enabled, telegram_token, chat_id, message):
     if not telegram_enabled:
@@ -41,7 +42,7 @@ def get_alerts_from_azure(file_name):
         alerts = json.loads(file_content)
         return alerts
     except Exception as e:
-        logging.error(f"Error in get_alerts_from_azure: {e}")
+        app_logger.error(f"Error in get_alerts_from_azure: {e}")
         return None
 
 def save_alerts_to_azure(file_name, alerts_content):
@@ -73,5 +74,5 @@ def save_alerts_to_azure(file_name, alerts_content):
         logging.info(f"Alerts successfully saved to Azure Storage: {file_name}")
         
     except Exception as e:
-        logging.error(f"Error in save_alerts_to_azure: {e}") 
+        app_logger.error(f"Error in save_alerts_to_azure: {e}") 
 

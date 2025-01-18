@@ -1,6 +1,7 @@
 import logging
 import os
 import requests
+from telegram_logging_handler import app_logger
 
 # Asset mapping dictionary
 ASSET_TO_COINGECKO_API_ID = {
@@ -47,7 +48,7 @@ def get_crypto_price(symbol):
 def get_crypto_price_coingecko(symbol, api_key):
     api_symbol = ASSET_TO_COINGECKO_API_ID.get(symbol.upper())
     if not api_symbol:
-        logging.error(f"Symbol '{symbol}' not found in mapping")
+        app_logger.error(f"Symbol '{symbol}' not found in mapping")
         return None
 
     url = f"https://api.coingecko.com/api/v3/simple/price?ids={api_symbol}&vs_currencies=usd&x_cg_demo_api_key={api_key}"
@@ -57,7 +58,7 @@ def get_crypto_price_coingecko(symbol, api_key):
         logging.info(f"Response from CoinGecko: {data}")
         return data[api_symbol]['usd'] if api_symbol in data else None
     else:
-        logging.error(f"Error fetching price for {symbol}: {response.status_code}")
+        app_logger.error(f"Error fetching price for {symbol}: {response.status_code}")
         return None
     
 def get_crypto_price_binance(symbol):
@@ -72,10 +73,10 @@ def get_crypto_price_binance(symbol):
             logging.info(f"Response from Binance: {data}")
             return float(data['price']) if 'price' in data else None
         else:
-            logging.error(f"Error fetching price for {symbol}: {response.status_code}")
+            app_logger.error(f"Error fetching price for {symbol}: {response.status_code}")
             return None
     except requests.RequestException as e:
-        logging.error(f"Request exception occurred: {e}")
+        app_logger.error(f"Request exception occurred: {e}")
         return None
     
 def get_crypto_price_kucoin(symbol):
@@ -90,13 +91,13 @@ def get_crypto_price_kucoin(symbol):
                 logging.info(f"Response from KuCoin: {data}")
                 return float(data['data']['price']) if 'data' in data and 'price' in data['data'] else None
             else:
-                logging.error(f"Error from KuCoin API: {data.get('msg')}")
+                app_logger.error(f"Error from KuCoin API: {data.get('msg')}")
                 return None
         else:
-            logging.error(f"Error fetching price for {symbol}: {response.status_code}")
+            app_logger.error(f"Error fetching price for {symbol}: {response.status_code}")
             return None
     except requests.RequestException as e:
-        logging.error(f"Request exception occurred: {e}")
+        app_logger.error(f"Request exception occurred: {e}")
         return None
     
 def get_crypto_price_coinmarketcap(symbol, api_key):
@@ -118,13 +119,13 @@ def get_crypto_price_coinmarketcap(symbol, api_key):
             if 'data' in data and symbol.upper() in data['data']:
                 return float(data['data'][symbol.upper()]['quote']['USD']['price'])
             else:
-                logging.error(f"Symbol '{symbol}' not found in CoinMarketCap data")
+                app_logger.error(f"Symbol '{symbol}' not found in CoinMarketCap data")
                 return None
         else:
-            logging.error(f"Error fetching price for {symbol}: {response.status_code} - {response.text}")
+            app_logger.error(f"Error fetching price for {symbol}: {response.status_code} - {response.text}")
             return None
     except requests.RequestException as e:
-        logging.error(f"Request exception occurred: {e}")
+        app_logger.error(f"Request exception occurred: {e}")
         return None
     
 def get_gst_bsc_price_from_coinmarketcap():
@@ -148,8 +149,8 @@ def get_gst_bsc_price_from_coinmarketcap():
             logging.info(f"Response from CoinMarketCap: {data}")
             return float(data['data']['20236']['quote']['USD']['price'])  # Extract price using ID
         else:
-            logging.error(f"Error fetching price for GST on BSC: {response.status_code} - {response.text}")
+            app_logger.error(f"Error fetching price for GST on BSC: {response.status_code} - {response.text}")
             return None
     except requests.RequestException as e:
-        logging.error(f"Request exception occurred: {e}")
+        app_logger.error(f"Request exception occurred: {e}")
         return None

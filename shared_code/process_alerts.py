@@ -2,7 +2,7 @@ from datetime import datetime
 import json
 import logging
 import os
-
+from telegram_logging_handler import app_logger
 from shared_code.price_cache import price_cache
 from shared_code.utils import get_alerts_from_azure, save_alerts_to_azure, send_telegram_message
 from shared_code.price_check import get_crypto_price
@@ -20,7 +20,7 @@ async def process_alerts():
         alerts = get_alerts_from_azure('alerts.json')
 
         if alerts is None:
-            logging.error("Failed to get alerts from Azure Storage.")
+            app_logger.error("Failed to get alerts from Azure Storage.")
             return
         
         alerts = [alert for alert in alerts if not alert['triggered_date']]
@@ -93,4 +93,4 @@ async def process_alerts():
         price_cache.clear()
                     
     except Exception as e:
-        logging.error(f"Error processing alerts: {str(e)}") 
+        app_logger.error(f"Error processing alerts: {str(e)}") 

@@ -2,6 +2,7 @@ import logging
 import azure.functions as func
 import json
 import os
+from telegram_logging_handler import app_logger
 from shared_code.utils import get_alerts_from_azure, send_telegram_message
 
 async def main(req: func.HttpRequest) -> func.HttpResponse:
@@ -55,9 +56,9 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
         )
         
     except Exception as e:
-        logging.error(f"Error in get_all_alerts: {str(e)}")
-        logging.error(f"Error type: {type(e).__name__}")
-        logging.error(f"Error details: ", exc_info=True)  # This will log the full stack trace
+        app_logger.error(f"Error in get_all_alerts: {str(e)}")
+        app_logger.error(f"Error type: {type(e).__name__}")
+        app_logger.error(f"Error details: ", exc_info=True)  # This will log the full stack trace
         return func.HttpResponse(
             body=json.dumps({
                 "error": str(e),
