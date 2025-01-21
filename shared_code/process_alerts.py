@@ -12,7 +12,7 @@ async def process_alerts():
     try:
         telegram_enabled = os.environ["TELEGRAM_ENABLED"].lower() == "true"
         telegram_token = os.environ["TELEGRAM_TOKEN"]
-        telegram_chat_ids = os.environ["TELEGRAM_CHAT_IDS"]
+        telegram_chat_id = os.environ["TELEGRAM_CHAT_ID"]
         coingecko_api_key = os.environ["COINGECKO_API_KEY"]
 
         # with open('alerts.json', 'r') as file:  # Replace 'data.json' with your file name
@@ -60,7 +60,7 @@ async def process_alerts():
                         alert['triggered_date'] = datetime.now().isoformat()
                         any_alert_triggered = True
                         
-                        await send_telegram_message(telegram_enabled, telegram_token, telegram_chat_ids, message)
+                        await send_telegram_message(telegram_enabled, telegram_token, telegram_chat_id, message)
                         logging.info(f"Ratio alert sent for {alert['symbol1']}/{alert['symbol2']}")
             
             else:
@@ -84,7 +84,7 @@ async def process_alerts():
                         alert['triggered_date'] = datetime.now().isoformat()
                         any_alert_triggered = True
                         
-                        await send_telegram_message(telegram_enabled, telegram_token, telegram_chat_ids, message)
+                        await send_telegram_message(telegram_enabled, telegram_token, telegram_chat_id, message)
                         logging.info(f"Alert sent for {alert['symbol']}")
 
         if any_alert_triggered:

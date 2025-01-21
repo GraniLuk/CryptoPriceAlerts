@@ -3,7 +3,7 @@
 Required environment variables:
 - TELEGRAM_ENABLED: true/false
 - TELEGRAM_TOKEN: Telegram bot token
-- TELEGRAM_CHAT_IDS: Comma-separated chat IDs
+- TELEGRAM_CHAT_ID: Telegram chat IDs
 - COINGECKO_API_KEY: CoinGecko API key
 - AZURE_STORAGE_SHARE_NAME: Azure file share name
 - AZURE_STORAGE_STORAGE_ACCOUNT: Storage account name

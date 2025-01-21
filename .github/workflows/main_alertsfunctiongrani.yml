@@ -101,8 +101,8 @@ jobs:
               "slotSetting": false
             },
             {
-              "name": "TELEGRAM_CHAT_IDS",
-              "value": "${{ secrets.TELEGRAM_CHAT_IDS }}",
+              "name": "TELEGRAM_CHAT_ID",
+              "value": "${{ secrets.TELEGRAM_CHAT_ID }}",
               "slotSetting": false
             },
             {

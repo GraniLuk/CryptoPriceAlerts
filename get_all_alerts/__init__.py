@@ -19,8 +19,8 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
         logging.info("Reading Telegram configuration...")
         telegram_enabled = os.environ["TELEGRAM_ENABLED"].lower() == "true"
         telegram_token = os.environ["TELEGRAM_TOKEN"]
-        telegram_chat_ids = os.environ["TELEGRAM_CHAT_IDS"]
-        logging.info(f"Telegram enabled: {telegram_enabled}, Chat IDs count: {len(telegram_chat_ids)}")
+        telegram_chat_id = os.environ["TELEGRAM_CHAT_ID"]
+        logging.info(f"Telegram enabled: {telegram_enabled}, Chat IDs: {telegram_chat_id}")
         
         message = "📊 Current Price Alerts:\n\n"
         
@@ -47,7 +47,7 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
                 message += "---------------\n"
         
         if telegram_enabled:
-            await send_telegram_message(telegram_enabled, telegram_token, telegram_chat_ids, message)
+            await send_telegram_message(telegram_enabled, telegram_token, telegram_chat_id, message)
 
         return func.HttpResponse(
             body=json.dumps({"alerts": alerts}),
