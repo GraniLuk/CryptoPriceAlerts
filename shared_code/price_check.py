@@ -35,7 +35,7 @@ ASSET_TO_COINGECKO_API_ID = {
     "GST": "green-satoshi-token-bsc"
 }
 
-KUCOIN_SYMBOLS = {'AKT', 'KCS'}
+KUCOIN_SYMBOLS = {'AKT', 'KCS', 'DYM'}
 
 def get_crypto_price(symbol):
     if symbol in KUCOIN_SYMBOLS:
