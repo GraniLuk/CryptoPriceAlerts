@@ -45,7 +45,7 @@ async def process_alerts():
                 if price1 and price2 and price2 != 0:
                     ratio = price1 / price2
                     # Example of logging
-                    log_ratio_metric(alert['symbol1'], alert['symbol2'], ratio)
+                    log_custom_metric(alert['symbol1'], alert['symbol2'], ratio)
                     # logging.info(f"Ratio for {alert['symbol1']}/{alert['symbol2']}: {ratio:.4f}")
                     if alert['operator'] == ">" and ratio > alert['price']:
                         condition_met = True
