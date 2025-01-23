@@ -1,10 +1,32 @@
+from opentelemetry import metrics
+from opentelemetry.sdk.metrics import MeterProvider
+from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+from opentelemetry.exporter.azure.monitor import AzureMonitorMetricExporter
+
 import os
-from opencensus.ext.azure.metrics_exporter import new_metrics_exporter
 
+# Load connection string from environment
 connection_string = os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING")
-exporter = new_metrics_exporter(connection_string=connection_string)
 
-def log_ratio_metric(symbol1, symbol2, ratio):
-    metric_name = f"Ratio_{symbol1}_{symbol2}"
-    exporter.add_metric(metric_name, ratio)
-    exporter.export_metrics()
+# Create the Azure Monitor exporter
+exporter = AzureMonitorMetricExporter.from_connection_string(connection_string)
+
+# Set up the OpenTelemetry MeterProvider
+reader = PeriodicExportingMetricReader(exporter, export_interval_millis=60000)  # Exports every minute
+provider = MeterProvider(metric_readers=[reader])
+metrics.set_meter_provider(provider)
+
+# Get a meter to create and record metrics
+meter = metrics.get_meter("custom-metrics")
+
+# Create a metric instrument
+ratio_metric = meter.create_observable_gauge(
+    name="custom.ratio.metric",
+    description="Tracks the ratio for a specific symbol pair",
+    callbacks=[]
+)
+
+# Function to observe and record ratio
+def log_custom_metric(symbol1, symbol2, ratio):
+    ratio_metric.add_callback(lambda: ratio)  # Push ratio dynamically
+    print(f"Logged custom metric: Ratio for {symbol1}/{symbol2} = {ratio}")
