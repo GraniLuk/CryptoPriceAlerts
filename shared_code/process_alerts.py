@@ -44,9 +44,12 @@ async def process_alerts():
                     
                 if price1 and price2 and price2 != 0:
                     ratio = price1 / price2
-                    # Example of logging
-                    log_custom_metric(alert['symbol1'], alert['symbol2'], ratio)
-                    # logging.info(f"Ratio for {alert['symbol1']}/{alert['symbol2']}: {ratio:.4f}")
+                    # metric logging
+                    log_custom_metric(
+                        name="crypto_ratio",
+                        value=ratio,
+                        attributes={"symbol1": alert['symbol1'], "symbol2": alert['symbol2']}
+                    )
                     if alert['operator'] == ">" and ratio > alert['price']:
                         condition_met = True
                     elif alert['operator'] == "<" and ratio < alert['price']:
@@ -96,4 +99,4 @@ async def process_alerts():
         price_cache.clear()
                     
     except Exception as e:
-        app_logger.error(f"Error processing alerts: {str(e)}") 
+        app_logger.error(f"Error processing alerts: {str(e)}")
