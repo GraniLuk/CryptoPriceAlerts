@@ -6,7 +6,7 @@ from telegram_logging_handler import app_logger
 from shared_code.price_cache import price_cache
 from shared_code.utils import get_alerts_from_azure, save_alerts_to_azure, send_telegram_message
 from shared_code.price_check import get_crypto_price
-from ratio_metric import log_ratio_metric
+from ratio_metric import log_custom_metric
 
 
 async def process_alerts():
