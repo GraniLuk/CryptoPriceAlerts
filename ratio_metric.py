@@ -24,5 +24,5 @@ metrics.set_meter_provider(provider)
 meter = metrics.get_meter(__name__)
 
 def log_custom_metric(name, value, attributes=None):
-    counter = meter.create_counter(name)
-    counter.add(value, attributes or {})
+    gauge = meter.create_gauge(name)
+    gauge.set(value, attributes or {})
