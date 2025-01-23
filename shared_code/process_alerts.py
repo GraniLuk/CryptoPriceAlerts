@@ -50,6 +50,7 @@ async def process_alerts():
                         value=ratio,
                         attributes={"symbol1": alert['symbol1'], "symbol2": alert['symbol2']}
                     )
+                    logging.info(f"Logged ratio metric for {alert['symbol1']}/{alert['symbol2']}: {ratio:.4f}")
                     if alert['operator'] == ">" and ratio > alert['price']:
                         condition_met = True
                     elif alert['operator'] == "<" and ratio < alert['price']:
