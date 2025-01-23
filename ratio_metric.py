@@ -1,11 +1,10 @@
-# Use TelemetryClient to send custom metrics
-from opencensus.ext.azure import telemetry_client
+import os
+from opencensus.ext.azure.metrics_exporter import new_metrics_exporter
 
 connection_string = os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING")
-
-telemetry_client = telemetry_client.TelemetryClient(connection_string)
+exporter = new_metrics_exporter(connection_string=connection_string)
 
 def log_ratio_metric(symbol1, symbol2, ratio):
     metric_name = f"Ratio_{symbol1}_{symbol2}"
-    telemetry_client.track_metric(name=metric_name, value=ratio)
-    telemetry_client.flush()  # Immediately send the metric
+    exporter.add_metric(metric_name, ratio)
+    exporter.export_metrics()
