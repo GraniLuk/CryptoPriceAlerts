@@ -13,4 +13,5 @@ requests
 azure-storage-file-share
 python-dotenv
 opentelemetry-api
-opentelemetry-sdk opentelemetry-exporter-azure-monitor
+opentelemetry-sdk
+opentelemetry-exporter-azure-monitor
