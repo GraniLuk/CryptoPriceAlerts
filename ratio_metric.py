@@ -1,7 +1,7 @@
 from opentelemetry import metrics
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
-from opentelemetry.exporter.azure.monitor import AzureMonitorMetricExporter
+from azure.monitor.opentelemetry import AzureMonitorMetricExporter
 
 import os
 
