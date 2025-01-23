@@ -6,6 +6,7 @@ from telegram_logging_handler import app_logger
 from shared_code.price_cache import price_cache
 from shared_code.utils import get_alerts_from_azure, save_alerts_to_azure, send_telegram_message
 from shared_code.price_check import get_crypto_price
+from ratio_metric import log_ratio_metric
 
 
 async def process_alerts():
@@ -43,7 +44,9 @@ async def process_alerts():
                     
                 if price1 and price2 and price2 != 0:
                     ratio = price1 / price2
-                    logging.info(f"Ratio for {alert['symbol1']}/{alert['symbol2']}: {ratio:.4f}")
+                    # Example of logging
+                    log_ratio_metric(alert['symbol1'], alert['symbol2'], ratio)
+                    # logging.info(f"Ratio for {alert['symbol1']}/{alert['symbol2']}: {ratio:.4f}")
                     if alert['operator'] == ">" and ratio > alert['price']:
                         condition_met = True
                     elif alert['operator'] == "<" and ratio < alert['price']:

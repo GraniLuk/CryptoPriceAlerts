@@ -12,3 +12,4 @@ azure-data-tables
 requests
 azure-storage-file-share
 python-dotenv
+opencensus-ext-azure
