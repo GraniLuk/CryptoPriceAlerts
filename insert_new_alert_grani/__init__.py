@@ -1,6 +1,7 @@
 import logging
 import azure.functions as func
 from shared_code.utils import get_alerts_from_azure, save_alerts_to_azure
+from uuid import uuid4
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Python HTTP trigger function processed a request.')
@@ -23,6 +24,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
                 )
 
             new_alert = {
+                "id": str(uuid4()),
                 "type": "ratio",
                 "symbol1": symbol1,
                 "symbol2": symbol2,
@@ -44,6 +46,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
                 )
 
             new_alert = {
+                "id": str(uuid4()),
                 "type": "single",
                 "symbol": symbol,
                 "price": price,
