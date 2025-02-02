@@ -11,8 +11,8 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         alert_type = req_body.get('type', 'single')  # Default to single for backward compatibility
         
         if alert_type == 'ratio':
-            symbol1 = req_body.get('symbol1')
-            symbol2 = req_body.get('symbol2')
+            symbol1 = req_body.get('symbol1').upper()
+            symbol2 = req_body.get('symbol2').upper()
             price = req_body.get('price')
             operator = req_body.get('operator')
             description = req_body.get('description')
@@ -34,7 +34,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
                 "triggered_date": ""
             }
         else:
-            symbol = req_body.get('symbol')
+            symbol = req_body.get('symbol').upper()
             price = req_body.get('price')
             operator = req_body.get('operator')
             description = req_body.get('description')

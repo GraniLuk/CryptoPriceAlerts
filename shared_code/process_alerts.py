@@ -29,7 +29,6 @@ async def process_alerts():
         
         for alert in alerts:
             condition_met = False
-            
             if alert.get('type') == 'ratio':
                 # Handle ratio alerts
                 price1 = price_cache.get_price(alert['symbol1'])
@@ -72,6 +71,7 @@ async def process_alerts():
             
             else:
                 # Handle existing single symbol alerts
+                alert['symbol'] = alert['symbol'].upper()
                 current_price = price_cache.get_price(alert['symbol'])
                 if current_price is None:
                     current_price = get_crypto_price(alert['symbol'])
