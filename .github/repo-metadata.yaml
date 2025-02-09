@@ -1,0 +1,18 @@
+short_description: Real-time cryptocurrency price monitoring and alert system built with Azure Functions and Telegram integration.
+
+topics:
+  - cryptocurrency
+  - bitcoin
+  - price-alerts
+  - azure-functions
+  - telegram-bot
+  - serverless
+  - python
+  - coingecko-api
+  - trading-bot
+  - crypto-monitoring
+
+categories:
+  - Finance
+  - Cryptocurrency
+  - Tools

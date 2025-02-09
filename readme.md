@@ -1,11 +1,20 @@
 # Bitcoin Price Alerts
 
-A serverless Azure Functions application that monitors cryptocurrency prices and sends alerts via Telegram when specific price conditions are met.
+🚨 Real-time cryptocurrency price monitoring and alert system built with Azure Functions and Telegram integration.
+
+A serverless application that tracks cryptocurrency prices and sends customizable alerts through Telegram. Support for both single-coin price monitoring and trading pair ratio alerts.
+
+## 🔑 Key Features
+- 📈 Real-time price monitoring
+- 🔄 Ratio-based trading pair alerts
+- 💬 Telegram notifications
+- ⚡ Serverless Azure Functions
+- 🔐 Secure storage with Azure File Share
 
 ## Features
 
 ### Price Monitoring
-- Monitors cryptocurrency prices using CoinGecko API
+- Monitors cryptocurrency prices using CoinGecko or CoinMarketCap API
 - Supports two types of price alerts:
   1. Single Symbol Alerts: Monitor individual cryptocurrency prices
   2. Ratio Alerts: Monitor price ratios between two cryptocurrencies
