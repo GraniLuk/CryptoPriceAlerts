@@ -31,28 +31,34 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
                 message += f"Price: ${alert['price']}\n"
                 message += f"Operator: {alert['operator']}\n"
                 message += f"Description: {alert['description']}\n"
-                
+
                 # Display triggers if present
-                if 'triggers' in alert and alert['triggers']:
+                if "triggers" in alert and alert["triggers"]:
                     message += "Triggers:\n"
-                    for trigger in alert['triggers']:
-                        if trigger['type'] == 'bybit_action':
+                    for trigger in alert["triggers"]:
+                        if trigger["type"] == "bybit_action":
                             message += f"- Bybit: {trigger['action']}\n"
-                            
+
                             # Display additional action parameters based on action type
-                            if trigger['action'] == 'open_position':
-                                params = trigger.get('params', {})
+                            if trigger["action"] == "open_position":
+                                params = trigger.get("params", {})
                                 message += f"  Side: {params.get('side', 'N/A')}\n"
                                 message += f"  Quantity: {params.get('qty', 'N/A')}\n"
-                                if 'leverage' in params:
-                                    message += f"  Leverage: {params.get('leverage')}x\n"
-                            elif trigger['action'] == 'set_tp_sl':
-                                params = trigger.get('params', {})
-                                if 'take_profit' in params:
-                                    message += f"  Take Profit: ${params.get('take_profit')}\n"
-                                if 'stop_loss' in params:
-                                    message += f"  Stop Loss: ${params.get('stop_loss')}\n"
-                
+                                if "leverage" in params:
+                                    message += (
+                                        f"  Leverage: {params.get('leverage')}x\n"
+                                    )
+                            elif trigger["action"] == "set_tp_sl":
+                                params = trigger.get("params", {})
+                                if "take_profit" in params:
+                                    message += (
+                                        f"  Take Profit: ${params.get('take_profit')}\n"
+                                    )
+                                if "stop_loss" in params:
+                                    message += (
+                                        f"  Stop Loss: ${params.get('stop_loss')}\n"
+                                    )
+
                 message += "---------------\n"
 
         if ratio_alerts:
@@ -62,28 +68,34 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
                 message += f"Ratio: {alert['price']}\n"
                 message += f"Operator: {alert['operator']}\n"
                 message += f"Description: {alert['description']}\n"
-                
+
                 # Display triggers if present
-                if 'triggers' in alert and alert['triggers']:
+                if "triggers" in alert and alert["triggers"]:
                     message += "Triggers:\n"
-                    for trigger in alert['triggers']:
-                        if trigger['type'] == 'bybit_action':
+                    for trigger in alert["triggers"]:
+                        if trigger["type"] == "bybit_action":
                             message += f"- Bybit: {trigger['action']}\n"
-                            
+
                             # Display additional action parameters based on action type
-                            if trigger['action'] == 'open_position':
-                                params = trigger.get('params', {})
+                            if trigger["action"] == "open_position":
+                                params = trigger.get("params", {})
                                 message += f"  Side: {params.get('side', 'N/A')}\n"
                                 message += f"  Quantity: {params.get('qty', 'N/A')}\n"
-                                if 'leverage' in params:
-                                    message += f"  Leverage: {params.get('leverage')}x\n"
-                            elif trigger['action'] == 'set_tp_sl':
-                                params = trigger.get('params', {})
-                                if 'take_profit' in params:
-                                    message += f"  Take Profit: ${params.get('take_profit')}\n"
-                                if 'stop_loss' in params:
-                                    message += f"  Stop Loss: ${params.get('stop_loss')}\n"
-                
+                                if "leverage" in params:
+                                    message += (
+                                        f"  Leverage: {params.get('leverage')}x\n"
+                                    )
+                            elif trigger["action"] == "set_tp_sl":
+                                params = trigger.get("params", {})
+                                if "take_profit" in params:
+                                    message += (
+                                        f"  Take Profit: ${params.get('take_profit')}\n"
+                                    )
+                                if "stop_loss" in params:
+                                    message += (
+                                        f"  Stop Loss: ${params.get('stop_loss')}\n"
+                                    )
+
                 message += "---------------\n"
 
         return func.HttpResponse(

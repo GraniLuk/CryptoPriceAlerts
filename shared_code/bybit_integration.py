@@ -1,19 +1,24 @@
-import os
-import logging
-import time
-from typing import Dict, Any, Optional, Tuple
-import hmac
 import hashlib
-import requests
+import hmac
 import json
+import logging
+import os
+import time
+from typing import Any, Dict, Optional, Tuple
 from urllib.parse import urlencode
+
+import requests
+
 from telegram_logging_handler import app_logger
 
+
 class BybitClient:
-    def __init__(self, api_key: str = None, api_secret: str = None, testnet: bool = False):
+    def __init__(
+        self, api_key: str = None, api_secret: str = None, testnet: bool = False
+    ):
         """
         Initialize Bybit client with API credentials
-        
+
         Parameters:
         -----------
         api_key : str
@@ -25,13 +30,15 @@ class BybitClient:
         """
         self.api_key = api_key or os.environ.get("BYBIT_API_KEY")
         self.api_secret = api_secret or os.environ.get("BYBIT_API_SECRET")
-        
+
         if not self.api_key or not self.api_secret:
             app_logger.error("Bybit API credentials not provided")
             raise ValueError("Bybit API key and secret must be provided")
-        
+
         # Set the base URL based on testnet flag
-        self.base_url = "https://api-testnet.bybit.com" if testnet else "https://api.bybit.com"
+        self.base_url = (
+            "https://api-testnet.bybit.com" if testnet else "https://api.bybit.com"
+        )
         self.recvWindow = 5000
 
     def _generate_signature(self, params: Dict[str, Any]) -> str:
@@ -39,28 +46,32 @@ class BybitClient:
         ordered_params = sorted(params.items())
         query_string = urlencode(ordered_params)
         signature = hmac.new(
-            self.api_secret.encode('utf-8'),
-            query_string.encode('utf-8'),
-            hashlib.sha256
+            self.api_secret.encode("utf-8"),
+            query_string.encode("utf-8"),
+            hashlib.sha256,
         ).hexdigest()
         return signature
 
-    def _make_request(self, method: str, endpoint: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
+    def _make_request(
+        self, method: str, endpoint: str, params: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
         """Send request to Bybit API"""
         url = f"{self.base_url}{endpoint}"
-        
+
         timestamp = int(time.time() * 1000)
         params = params or {}
-        params.update({
-            "api_key": self.api_key,
-            "timestamp": timestamp,
-            "recv_window": self.recvWindow
-        })
-        
+        params.update(
+            {
+                "api_key": self.api_key,
+                "timestamp": timestamp,
+                "recv_window": self.recvWindow,
+            }
+        )
+
         # Generate signature
         signature = self._generate_signature(params)
         params["sign"] = signature
-        
+
         try:
             if method == "GET":
                 response = requests.get(url, params=params)
@@ -68,28 +79,40 @@ class BybitClient:
                 response = requests.post(url, data=params)
             else:
                 raise ValueError(f"Unsupported HTTP method: {method}")
-            
+
             data = response.json()
-            
+
             if response.status_code != 200 or data.get("ret_code") != 0:
                 error_msg = f"Bybit API error: {data.get('ret_msg', 'Unknown error')}"
                 app_logger.error(error_msg)
                 return {"success": False, "message": error_msg, "data": data}
-            
-            return {"success": True, "data": data["result"] if "result" in data else data}
-        
+
+            return {
+                "success": True,
+                "data": data["result"] if "result" in data else data,
+            }
+
         except Exception as e:
             error_msg = f"Error in Bybit API request: {str(e)}"
             app_logger.error(error_msg)
             return {"success": False, "message": error_msg}
 
-    def open_position(self, symbol: str, side: str, order_type: str, qty: float,
-                     price: Optional[float] = None, time_in_force: str = "GoodTillCancel",
-                     take_profit: Optional[float] = None, stop_loss: Optional[float] = None,
-                     reduce_only: bool = False, leverage: Optional[int] = None) -> Dict[str, Any]:
+    def open_position(
+        self,
+        symbol: str,
+        side: str,
+        order_type: str,
+        qty: float,
+        price: Optional[float] = None,
+        time_in_force: str = "GoodTillCancel",
+        take_profit: Optional[float] = None,
+        stop_loss: Optional[float] = None,
+        reduce_only: bool = False,
+        leverage: Optional[int] = None,
+    ) -> Dict[str, Any]:
         """
         Open a new position on Bybit
-        
+
         Parameters:
         -----------
         symbol : str
@@ -112,7 +135,7 @@ class BybitClient:
             Whether the order should only reduce position
         leverage : int, optional
             Set leverage for the position
-            
+
         Returns:
         --------
         dict
@@ -121,7 +144,7 @@ class BybitClient:
         # Set leverage if provided
         if leverage is not None:
             self.set_leverage(symbol, leverage)
-        
+
         # Prepare parameters
         params = {
             "symbol": symbol,
@@ -129,19 +152,19 @@ class BybitClient:
             "order_type": order_type,
             "qty": qty,
             "time_in_force": time_in_force,
-            "reduce_only": reduce_only
+            "reduce_only": reduce_only,
         }
-        
+
         # Add optional parameters
         if price is not None and order_type == "Limit":
             params["price"] = price
-        
+
         if take_profit is not None:
             params["take_profit"] = take_profit
-            
+
         if stop_loss is not None:
             params["stop_loss"] = stop_loss
-        
+
         # Send the request
         endpoint = "/v2/private/order/create"
         return self._make_request("POST", endpoint, params)
@@ -149,29 +172,31 @@ class BybitClient:
     def close_position(self, symbol: str) -> Dict[str, Any]:
         """
         Close an open position for a symbol
-        
+
         Parameters:
         -----------
         symbol : str
             Trading pair symbol (e.g., 'BTCUSDT')
-            
+
         Returns:
         --------
         dict
             Response from Bybit API
         """
-        params = {
-            "symbol": symbol
-        }
-        
+        params = {"symbol": symbol}
+
         endpoint = "/v2/private/position/close"
         return self._make_request("POST", endpoint, params)
 
-    def set_take_profit_stop_loss(self, symbol: str, take_profit: Optional[float] = None, 
-                                 stop_loss: Optional[float] = None) -> Dict[str, Any]:
+    def set_take_profit_stop_loss(
+        self,
+        symbol: str,
+        take_profit: Optional[float] = None,
+        stop_loss: Optional[float] = None,
+    ) -> Dict[str, Any]:
         """
         Set take profit and stop loss for an open position
-        
+
         Parameters:
         -----------
         symbol : str
@@ -180,89 +205,85 @@ class BybitClient:
             Take profit price
         stop_loss : float, optional
             Stop loss price
-            
+
         Returns:
         --------
         dict
             Response from Bybit API
         """
-        params = {
-            "symbol": symbol
-        }
-        
+        params = {"symbol": symbol}
+
         if take_profit is not None:
             params["take_profit"] = take_profit
-            
+
         if stop_loss is not None:
             params["stop_loss"] = stop_loss
-        
+
         endpoint = "/v2/private/position/trading-stop"
         return self._make_request("POST", endpoint, params)
 
     def set_leverage(self, symbol: str, leverage: int) -> Dict[str, Any]:
         """
         Set leverage for a symbol
-        
+
         Parameters:
         -----------
         symbol : str
             Trading pair symbol (e.g., 'BTCUSDT')
         leverage : int
             Leverage value (1-100)
-            
+
         Returns:
         --------
         dict
             Response from Bybit API
         """
-        params = {
-            "symbol": symbol,
-            "leverage": leverage
-        }
-        
+        params = {"symbol": symbol, "leverage": leverage}
+
         endpoint = "/v2/private/position/leverage/save"
         return self._make_request("POST", endpoint, params)
 
     def get_position(self, symbol: str) -> Dict[str, Any]:
         """
         Get position information for a symbol
-        
+
         Parameters:
         -----------
         symbol : str
             Trading pair symbol (e.g., 'BTCUSDT')
-            
+
         Returns:
         --------
         dict
             Response from Bybit API
         """
-        params = {
-            "symbol": symbol
-        }
-        
+        params = {"symbol": symbol}
+
         endpoint = "/v2/private/position/list"
         return self._make_request("GET", endpoint, params)
+
 
 def execute_bybit_action(action_type: str, params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Execute a Bybit action based on the type and parameters
-    
+
     Parameters:
     -----------
     action_type : str
         Type of action to execute ('open_position', 'close_position', 'set_tp_sl')
     params : dict
         Parameters for the action
-        
+
     Returns:
     --------
     dict
         Result of the action
     """
     try:
-        client = BybitClient(testnet=os.environ.get("BYBIT_TESTNET", "false").lower() == "true")
-        
+        client = BybitClient(
+            testnet=os.environ.get("BYBIT_TESTNET", "false").lower() == "true"
+        )
+
         if action_type == "open_position":
             return client.open_position(
                 symbol=params.get("symbol"),
@@ -272,7 +293,7 @@ def execute_bybit_action(action_type: str, params: Dict[str, Any]) -> Dict[str, 
                 price=params.get("price"),
                 take_profit=params.get("take_profit"),
                 stop_loss=params.get("stop_loss"),
-                leverage=params.get("leverage")
+                leverage=params.get("leverage"),
             )
         elif action_type == "close_position":
             return client.close_position(symbol=params.get("symbol"))
@@ -280,13 +301,13 @@ def execute_bybit_action(action_type: str, params: Dict[str, Any]) -> Dict[str, 
             return client.set_take_profit_stop_loss(
                 symbol=params.get("symbol"),
                 take_profit=params.get("take_profit"),
-                stop_loss=params.get("stop_loss")
+                stop_loss=params.get("stop_loss"),
             )
         else:
             error_msg = f"Unsupported action type: {action_type}"
             app_logger.error(error_msg)
             return {"success": False, "message": error_msg}
-            
+
     except Exception as e:
         error_msg = f"Error executing Bybit action: {str(e)}"
         app_logger.error(error_msg)
