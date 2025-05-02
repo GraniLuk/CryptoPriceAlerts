@@ -124,6 +124,31 @@ jobs:
               "name": "AZURE_STORAGE_STORAGE_ACCOUNT_KEY",
               "value": "${{ secrets.AZURE_STORAGE_STORAGE_ACCOUNT_KEY }}",
               "slotSetting": false
+            },
+            {
+              "name": "BYBIT_API_KEY",
+              "value": "${{ secrets.BYBIT_API_KEY }}",
+              "slotSetting": false
+            },
+            {
+              "name": "BYBIT_API_SECRET",
+              "value": "${{ secrets.BYBIT_API_SECRET }}",
+              "slotSetting": false
+            },
+            {
+              "name": "BYBIT_TESTNET",
+              "value": "${{ secrets.BYBIT_TESTNET }}",
+              "slotSetting": false
+            },
+            {
+              "name": "COINMARKETCAP_API_KEY",
+              "value": "${{ secrets.COINMARKETCAP_API_KEY }}",
+              "slotSetting": false
+            },
+            {
+              "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+              "value": "${{ secrets.APPLICATIONINSIGHTS_CONNECTION_STRING }}",
+              "slotSetting": false
             }]'
 
       - name: Install dependencies on Azure

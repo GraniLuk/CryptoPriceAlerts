@@ -6,6 +6,7 @@ from telegram_logging_handler import app_logger
 from shared_code.price_cache import price_cache
 from shared_code.utils import get_alerts_from_azure, save_alerts_to_azure, send_telegram_message
 from shared_code.price_check import get_crypto_price
+from shared_code.bybit_integration import execute_bybit_action
 from ratio_metric import log_custom_metric
 
 
@@ -16,8 +17,6 @@ async def process_alerts():
         telegram_chat_id = os.environ["TELEGRAM_CHAT_ID"]
         coingecko_api_key = os.environ["COINGECKO_API_KEY"]
 
-        # with open('alerts.json', 'r') as file:  # Replace 'data.json' with your file name
-        #     alerts = json.load(file)
         alerts = get_alerts_from_azure('alerts.json')
 
         if alerts is None:
@@ -29,6 +28,8 @@ async def process_alerts():
         
         for alert in alerts:
             condition_met = False
+            
+            # Handle different alert types
             if alert.get('type') == 'ratio':
                 # Handle ratio alerts
                 price1 = price_cache.get_price(alert['symbol1'])
@@ -63,6 +64,14 @@ async def process_alerts():
                         message += f"{alert['symbol1']}: ${price1:.2f}\n"
                         message += f"{alert['symbol2']}: ${price2:.2f}\n"
                         message += f"Description: {alert['description']}"
+                        
+                        # Execute triggers if defined
+                        if 'triggers' in alert and alert['triggers']:
+                            trigger_results = await execute_triggers(alert, message)
+                            # Add trigger results to the message
+                            for result in trigger_results:
+                                message += f"\n\n{result}"
+                            
                         alert['triggered_date'] = datetime.now().isoformat()
                         any_alert_triggered = True
                         
@@ -70,7 +79,7 @@ async def process_alerts():
                         logging.info(f"Ratio alert sent for {alert['symbol1']}/{alert['symbol2']}")
             
             else:
-                # Handle existing single symbol alerts
+                # Handle standard single symbol alerts
                 alert['symbol'] = alert['symbol'].upper()
                 current_price = price_cache.get_price(alert['symbol'])
                 if current_price is None:
@@ -88,6 +97,14 @@ async def process_alerts():
                         message += f"Current price: ${current_price}\n"
                         message += f"Alert condition: ${alert['price']} {alert['operator']}\n"
                         message += f"Description: {alert['description']}"
+                        
+                        # Execute triggers if defined
+                        if 'triggers' in alert and alert['triggers']:
+                            trigger_results = await execute_triggers(alert, message)
+                            # Add trigger results to the message
+                            for result in trigger_results:
+                                message += f"\n\n{result}"
+                            
                         alert['triggered_date'] = datetime.now().isoformat()
                         any_alert_triggered = True
                         
@@ -101,3 +118,46 @@ async def process_alerts():
                     
     except Exception as e:
         app_logger.error(f"Error processing alerts: {str(e)}")
+
+async def execute_triggers(alert, message):
+    """Execute all triggers defined in the alert"""
+    results = []
+    
+    try:
+        if 'triggers' not in alert or not alert['triggers']:
+            return results
+        
+        for trigger in alert['triggers']:
+            trigger_type = trigger.get('type')
+            
+            # Handle Bybit trading triggers
+            if trigger_type == 'bybit_action':
+                action = trigger.get('action')
+                params = trigger.get('params', {})
+                
+                # Add symbol from alert if not in params
+                if 'symbol' not in params and trigger_type == 'bybit_action':
+                    if 'symbol' in alert:
+                        params['symbol'] = alert['symbol']
+                    elif 'symbol1' in alert:
+                        # For ratio alerts, use symbol1 as the default trading pair
+                        params['symbol'] = alert['symbol1']
+                
+                # Execute the Bybit action
+                result = execute_bybit_action(action, params)
+                
+                if result['success']:
+                    results.append(f"✅ Bybit action '{action}' executed successfully")
+                else:
+                    results.append(f"❌ Bybit action failed: {result.get('message', 'Unknown error')}")
+            
+            # Future: Add other trigger types here
+            # elif trigger_type == 'some_other_action':
+            #     ...
+            
+    except Exception as e:
+        error_msg = f"Error executing triggers: {str(e)}"
+        app_logger.error(error_msg)
+        results.append(f"❌ {error_msg}")
+        
+    return results
