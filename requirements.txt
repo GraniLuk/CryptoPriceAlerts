@@ -14,5 +14,7 @@ azure-storage-file-share
 python-dotenv
 opentelemetry-api>=1.12.0
 opentelemetry-sdk>=1.12.0
+# Pin cryptography to a compatible version for Azure Functions Linux environment
+cryptography==43.0.3
 azure-monitor-opentelemetry
 azure-monitor-opentelemetry-exporter>=1.0.0b5
