@@ -16,10 +16,10 @@ from telegram_logging_handler import app_logger
 
 async def process_alerts():
     try:
-        telegram_enabled = os.environ["TELEGRAM_ENABLED"].lower() == "true"
-        telegram_token = os.environ["TELEGRAM_TOKEN"]
-        telegram_chat_id = os.environ["TELEGRAM_CHAT_ID"]
-        coingecko_api_key = os.environ["COINGECKO_API_KEY"]
+        telegram_enabled = os.environ.get("TELEGRAM_ENABLED", "false").lower() == "true"
+        telegram_token = os.environ.get("TELEGRAM_TOKEN", "") if telegram_enabled else ""
+        telegram_chat_id = os.environ.get("TELEGRAM_CHAT_ID", "") if telegram_enabled else ""
+        coingecko_api_key = os.environ.get("COINGECKO_API_KEY", "")
 
         alerts = get_alerts_from_azure("alerts.json")
 
