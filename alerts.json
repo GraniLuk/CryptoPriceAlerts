@@ -3,15 +3,8 @@
         "symbol": "BTC",
         "price": 50000.0,
         "operator": ">",
-        "description": "Alert when Bitcoin price goes above $50,000",
-        "triggered_date": "2024-11-28T20:00:53.131865"
-    },
-    {
-        "symbol": "BTC",
-        "price": 100000.0,
-        "operator": "<",
-        "description": "Alert when Bitcoin price goes below $100,000",
-        "triggered_date": "2024-11-28T20:00:54.656862"
+        "description": "Test Alert - Alert when Bitcoin price goes above $50,000",
+        "triggered_date": "2025-05-10T16:20:26.641274"
     },
     {
         "symbol": "BTC",
