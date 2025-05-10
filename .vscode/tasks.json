@@ -43,6 +43,20 @@
 			"label": "start azurite and func host",
 			"dependsOn": ["start azurite", "func: host start"],
 			"dependsOrder": "sequence"
+		},
+		{
+			"label": "stop azurite",
+			"type": "shell",
+			"windows": {
+				"command": "Get-Process -Name 'node' -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like '*azurite*' } | Stop-Process -Force"
+			},
+			"osx": {
+				"command": "pkill -f 'azurite'"
+			},
+			"linux": {
+				"command": "pkill -f 'azurite'"
+			},
+			"problemMatcher": []
 		}
 	]
 }
