@@ -1,12 +1,11 @@
-import json
 import logging
 import os
 from datetime import datetime
 
-from ratio_metric import log_custom_metric
 from shared_code.bybit_integration import execute_bybit_action
 from shared_code.price_cache import price_cache
 from shared_code.price_check import get_crypto_candle
+from shared_code.ratio_metric import log_custom_metric
 from shared_code.utils import (
     get_alerts_from_azure,
     save_alerts_to_azure,
