@@ -17,10 +17,20 @@ class AlertTableStorage:
             app_logger.warning("Azure Storage credentials not set, some features may be limited")
             self.service_client = None
             return
+        
+        # Check if we're using Azurite (local development)
+        if self.account_name == "devstoreaccount1":
+            # Use Azurite endpoint for local development
+            endpoint = "http://127.0.0.1:10002/devstoreaccount1"
+            app_logger.info("Using Azurite (local storage emulator) for table storage")
+        else:
+            # Use Azure cloud endpoint
+            endpoint = f"https://{self.account_name}.table.core.windows.net"
+            app_logger.info(f"Using Azure cloud storage account: {self.account_name}")
             
         self.credential = AzureNamedKeyCredential(self.account_name, self.account_key)
         self.service_client = TableServiceClient(
-            endpoint=f"https://{self.account_name}.table.core.windows.net",
+            endpoint=endpoint,
             credential=self.credential
         )
         

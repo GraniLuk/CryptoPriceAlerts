@@ -79,19 +79,42 @@ class CandleDataManager:
             
             # Query last 'count' candles, ordered by timestamp (RowKey is timestamp)
             filter_query = f"PartitionKey eq '{partition_key}'"
-            entities = list(self.candle_table.query_entities(
-                filter_query, 
-                select=["Symbol", "Timeframe", "Timestamp", "Open", "High", "Low", "Close", "Volume"]
-            ))
+            entities = list(self.candle_table.query_entities(filter_query))
             
-            # Sort by timestamp descending and take last 'count' items
-            entities.sort(key=lambda x: x["Timestamp"], reverse=True)
+            # Sort by RowKey (timestamp as integer) descending and take last 'count' items
+            entities.sort(key=lambda x: int(x["RowKey"]), reverse=True)
             entities = entities[:count]
             
             # Convert to CandleData objects and reverse to get chronological order
-            candles = [CandleData.from_table_entity(entity) for entity in entities]
-            candles.reverse()  # Oldest to newest
+            candles = []
+            for entity in entities:
+                try:
+                    # Handle datetime field properly
+                    timestamp_value = entity.get("Timestamp")
+                    if isinstance(timestamp_value, str):
+                        timestamp = datetime.fromisoformat(timestamp_value.replace('Z', '+00:00'))
+                    elif timestamp_value is None:
+                        # Fallback: use RowKey as timestamp
+                        timestamp = datetime.fromtimestamp(int(entity["RowKey"]))
+                    else:
+                        timestamp = timestamp_value
+                    
+                    candle = CandleData(
+                        symbol=entity["Symbol"],
+                        timeframe=entity["Timeframe"],
+                        timestamp=timestamp,
+                        open=float(entity["Open"]),
+                        high=float(entity["High"]),
+                        low=float(entity["Low"]),
+                        close=float(entity["Close"]),
+                        volume=float(entity["Volume"])
+                    )
+                    candles.append(candle)
+                except Exception as e:
+                    app_logger.warning(f"Skipping invalid candle entity: {e}")
+                    continue
             
+            candles.reverse()  # Oldest to newest
             return candles
             
         except Exception as e:
