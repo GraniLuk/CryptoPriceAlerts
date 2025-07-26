@@ -13,6 +13,10 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
     try:
         logging.info("Attempting to fetch alerts from Azure...")
         alerts = get_alerts_from_azure("alerts.json")
+        if alerts is None:
+            return func.HttpResponse(
+                "Error retrieving alerts from Azure", status_code=500
+            )
         logging.info(f"Successfully retrieved {len(alerts)} alerts")
 
         alerts = [alert for alert in alerts if not alert["triggered_date"]]
