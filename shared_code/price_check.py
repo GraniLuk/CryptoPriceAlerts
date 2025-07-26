@@ -1,10 +1,12 @@
 import logging
 import os
-import requests
-from telegram_logging_handler import app_logger
 from dataclasses import dataclass
 from typing import Optional
+
+import requests
+
 from shared_code.price_cache import price_cache
+from telegram_logging_handler import app_logger
 
 
 @dataclass

@@ -1,5 +1,7 @@
 import logging
+
 import azure.functions as func
+
 from shared_code.process_alerts import process_alerts
 
 

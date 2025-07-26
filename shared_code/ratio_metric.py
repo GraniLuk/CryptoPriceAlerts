@@ -1,9 +1,9 @@
-from opentelemetry import metrics
+import os
+
 from azure.monitor.opentelemetry.exporter import AzureMonitorMetricExporter
+from opentelemetry import metrics
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
-
-import os
 
 # Load connection string from environment
 connection_string = os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING")
