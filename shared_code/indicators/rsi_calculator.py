@@ -25,40 +25,41 @@ class RSICalculator:
             return None
         
         try:
-            # Convert to pandas DataFrame for easier calculation
-            df = pd.DataFrame({'price': pd.Series(prices, dtype=float)})
+            # Convert to numpy array for calculations
+            prices_array = np.array(prices, dtype=float)
             
             # Calculate price changes (deltas)
-            delta = df['price'].diff()
+            deltas = np.diff(prices_array)
             
             # Separate gains and losses
-            gains = delta.where(delta > 0, 0.0)
-            losses = -delta.where(delta < 0, 0.0)
+            gains = np.where(deltas > 0, deltas, 0.0)
+            losses = np.where(deltas < 0, -deltas, 0.0)
             
-            # Calculate simple moving averages of gains and losses for the first RSI value
-            avg_gain = gains.rolling(window=self.period).mean()
-            avg_loss = losses.rolling(window=self.period).mean()
+            if len(gains) < self.period:
+                app_logger.warning(f"Insufficient data for RSI calculation: {len(gains)} < {self.period}")
+                return None
+            
+            # Calculate simple moving averages for the first RSI value
+            avg_gain = np.mean(gains[:self.period])
+            avg_loss = np.mean(losses[:self.period])
             
             # For subsequent values, use exponential smoothing (Wilder's smoothing)
-            # This is the standard RSI calculation method
             for i in range(self.period, len(gains)):
-                avg_gain.iloc[i] = (avg_gain.iloc[i-1] * (self.period - 1) + gains.iloc[i]) / self.period
-                avg_loss.iloc[i] = (avg_loss.iloc[i-1] * (self.period - 1) + losses.iloc[i]) / self.period
+                avg_gain = (avg_gain * (self.period - 1) + gains[i]) / self.period
+                avg_loss = (avg_loss * (self.period - 1) + losses[i]) / self.period
             
             # Calculate Relative Strength (RS)
-            rs = avg_gain / avg_loss
+            if avg_loss == 0:
+                rsi = 100.0  # Avoid division by zero
+            else:
+                rs = avg_gain / avg_loss
+                rsi = 100 - (100 / (1 + rs))
             
-            # Calculate RSI
-            rsi = 100 - (100 / (1 + rs))
-            
-            # Return the last RSI value
-            last_rsi = rsi.iloc[-1]
-            
-            if pd.isna(last_rsi):
+            if np.isnan(rsi):
                 app_logger.warning("RSI calculation resulted in NaN")
                 return None
                 
-            return float(last_rsi)
+            return float(rsi)
             
         except Exception as e:
             app_logger.error(f"Error calculating RSI: {e}")
