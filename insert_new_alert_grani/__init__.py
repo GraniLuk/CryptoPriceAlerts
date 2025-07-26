@@ -114,6 +114,8 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
                 new_alert["triggers"] = valid_triggers
 
         current_alerts = get_alerts_from_azure("alerts.json")
+        if current_alerts is None:
+            return func.HttpResponse("Error retrieving alerts", status_code=500)
         current_alerts.append(new_alert)
         save_alerts_to_azure("alerts.json", current_alerts)
 
