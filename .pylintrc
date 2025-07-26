@@ -1,0 +1,59 @@
+[MASTER]
+# Specify the number of processes to use for pylint
+jobs=1
+
+# Add files or directories to the blacklist
+ignore=venv,packaged_function,.git,.github
+
+[MESSAGES CONTROL]
+# Disable specific warnings that are not critical for Azure Functions
+disable=
+    C0114,  # missing-module-docstring
+    C0115,  # missing-class-docstring
+    C0116,  # missing-function-docstring
+    R0903,  # too-few-public-methods
+    R0913,  # too-many-arguments
+    W0613,  # unused-argument
+    C0103,  # invalid-name (for variables like 'id')
+    R0801,  # duplicate-code
+    W0511,  # fixme
+
+[FORMAT]
+# Maximum number of characters on a single line
+max-line-length=100
+
+# Allow the body of an if to be on the same line as the test if there is no else
+single-line-if-stmt=no
+
+[VARIABLES]
+# List of additional names supposed to be defined in builtins
+additional-builtins=
+
+# Good variable names which should always be accepted
+good-names=i,j,k,ex,Run,_,id,qa,qb,app_logger
+
+[DESIGN]
+# Maximum number of arguments for function / method
+max-args=8
+
+# Maximum number of locals for function / method body
+max-locals=20
+
+# Maximum number of return / yield for function / method body
+max-returns=6
+
+# Maximum number of branch for function / method body
+max-branches=15
+
+# Maximum number of statements in function / method body
+max-statements=50
+
+[SIMILARITIES]
+# Minimum lines number of a similarity
+min-similarity-lines=6
+
+# Ignore comments when computing similarities
+ignore-comments=yes
+
+# Ignore docstrings when computing similarities
+ignore-docstrings=yes
