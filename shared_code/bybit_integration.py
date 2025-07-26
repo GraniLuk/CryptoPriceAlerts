@@ -1,10 +1,8 @@
 import hashlib
 import hmac
-import json
-import logging
 import os
 import time
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional
 from urllib.parse import urlencode
 
 import requests
@@ -14,7 +12,7 @@ from telegram_logging_handler import app_logger
 
 class BybitClient:
     def __init__(
-        self, api_key: str = None, api_secret: str = None, testnet: bool = False
+        self, api_key: Optional[str] = None, api_secret: Optional[str] = None, testnet: bool = False
     ):
         """
         Initialize Bybit client with API credentials
@@ -43,6 +41,9 @@ class BybitClient:
 
     def _generate_signature(self, params: Dict[str, Any]) -> str:
         """Generate HMAC SHA256 signature for API request"""
+        if not self.api_secret:
+            raise ValueError("API secret is required for signature generation")
+        
         ordered_params = sorted(params.items())
         query_string = urlencode(ordered_params)
         signature = hmac.new(
@@ -53,7 +54,7 @@ class BybitClient:
         return signature
 
     def _make_request(
-        self, method: str, endpoint: str, params: Dict[str, Any] = None
+        self, method: str, endpoint: str, params: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """Send request to Bybit API"""
         url = f"{self.base_url}{endpoint}"
@@ -63,8 +64,8 @@ class BybitClient:
         params.update(
             {
                 "api_key": self.api_key,
-                "timestamp": timestamp,
-                "recv_window": self.recvWindow,
+                "timestamp": str(timestamp),
+                "recv_window": str(self.recvWindow),
             }
         )
 
@@ -150,20 +151,20 @@ class BybitClient:
             "symbol": symbol,
             "side": side,
             "order_type": order_type,
-            "qty": qty,
+            "qty": str(qty),
             "time_in_force": time_in_force,
-            "reduce_only": reduce_only,
+            "reduce_only": str(reduce_only).lower(),
         }
 
         # Add optional parameters
         if price is not None and order_type == "Limit":
-            params["price"] = price
+            params["price"] = str(price)
 
         if take_profit is not None:
-            params["take_profit"] = take_profit
+            params["take_profit"] = str(take_profit)
 
         if stop_loss is not None:
-            params["stop_loss"] = stop_loss
+            params["stop_loss"] = str(stop_loss)
 
         # Send the request
         endpoint = "/v2/private/order/create"
@@ -214,10 +215,10 @@ class BybitClient:
         params = {"symbol": symbol}
 
         if take_profit is not None:
-            params["take_profit"] = take_profit
+            params["take_profit"] = str(take_profit)
 
         if stop_loss is not None:
-            params["stop_loss"] = stop_loss
+            params["stop_loss"] = str(stop_loss)
 
         endpoint = "/v2/private/position/trading-stop"
         return self._make_request("POST", endpoint, params)
@@ -238,7 +239,7 @@ class BybitClient:
         dict
             Response from Bybit API
         """
-        params = {"symbol": symbol, "leverage": leverage}
+        params = {"symbol": symbol, "leverage": str(leverage)}
 
         endpoint = "/v2/private/position/leverage/save"
         return self._make_request("POST", endpoint, params)
@@ -285,21 +286,41 @@ def execute_bybit_action(action_type: str, params: Dict[str, Any]) -> Dict[str, 
         )
 
         if action_type == "open_position":
+            # Validate required parameters
+            symbol = params.get("symbol")
+            side = params.get("side")
+            qty = params.get("qty")
+            
+            if not symbol or not side or qty is None:
+                error_msg = "Missing required parameters for open_position: symbol, side, qty"
+                app_logger.error(error_msg)
+                return {"success": False, "message": error_msg}
+            
             return client.open_position(
-                symbol=params.get("symbol"),
-                side=params.get("side"),
+                symbol=symbol,
+                side=side,
                 order_type=params.get("order_type", "Market"),
-                qty=params.get("qty"),
+                qty=float(qty),
                 price=params.get("price"),
                 take_profit=params.get("take_profit"),
                 stop_loss=params.get("stop_loss"),
                 leverage=params.get("leverage"),
             )
         elif action_type == "close_position":
-            return client.close_position(symbol=params.get("symbol"))
+            symbol = params.get("symbol")
+            if not symbol:
+                error_msg = "Missing required parameter for close_position: symbol"
+                app_logger.error(error_msg)
+                return {"success": False, "message": error_msg}
+            return client.close_position(symbol=symbol)
         elif action_type == "set_tp_sl":
+            symbol = params.get("symbol")
+            if not symbol:
+                error_msg = "Missing required parameter for set_tp_sl: symbol"
+                app_logger.error(error_msg)
+                return {"success": False, "message": error_msg}
             return client.set_take_profit_stop_loss(
-                symbol=params.get("symbol"),
+                symbol=symbol,
                 take_profit=params.get("take_profit"),
                 stop_loss=params.get("stop_loss"),
             )
