@@ -1,3 +1,32 @@
+## Technical Indicators Alert System Feature
+
+## Feature Overview
+
+### Goal
+Extend the existing crypto price alert system to support technical indicator-based alerts, starting with RSI (Relative Strength Index). This feature enables users to set alerts based on technical analysis conditions rather than just price thresholds.
+
+### Key Components
+- **Indicator Alerts**: New alert type for RSI conditions (overbought, oversold, crossovers)
+- **Azure Table Storage Migration**: Move from alerts.json to scalable table storage
+- **Candle Data Storage**: Dedicated table for storing historical price data needed for indicator calculations
+- **RSI Calculation Engine**: Real-time RSI computation with configurable parameters
+- **Enhanced API**: New endpoints for creating and managing indicator alerts
+
+### Benefits
+- **Scalability**: Azure Table Storage handles larger datasets efficiently
+- **Performance**: Cached candle data enables faster indicator calculations
+- **Flexibility**: Configurable indicator parameters (period, levels, timeframes)
+- **Extensibility**: Foundation for adding more indicators (MACD, Bollinger Bands, etc.)
+- **Reliability**: Structured data storage with proper indexing and querying
+
+### Architecture Changes
+- **Storage Layer**: Migrate from JSON files to Azure Table Storage (3 tables)
+- **Data Layer**: New candle data collection and caching system
+- **Processing Layer**: Enhanced alert processing with indicator calculations
+- **API Layer**: New endpoints for indicator alert management
+
+---
+
 ## Current Architecture Analysis
 
 Your application currently has:
@@ -12,15 +41,19 @@ Your application currently has:
 ### Phase 1: Foundation Setup (Week 1)
 
 #### 1.1 Azure Table Storage Setup
+
 ```python
 from azure.data.tables import TableServiceClient, TableClient
 from azure.core.credentials import AzureNamedKeyCredential
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
+from typing import List, Dict, Optional
 from telegram_logging_handler import app_logger
 
 class AlertTableStorage:
+    """Central class for managing all Azure Table Storage operations"""
+    
     def __init__(self):
         self.account_name = os.environ.get("AZURE_STORAGE_STORAGE_ACCOUNT")
         self.account_key = os.environ.get("AZURE_STORAGE_STORAGE_ACCOUNT_KEY")
@@ -29,6 +62,20 @@ class AlertTableStorage:
             account_url=f"https://{self.account_name}.table.core.windows.net",
             credential=self.credential
         )
+        
+        # Initialize all required tables
+        self._initialize_tables()
+        
+    def _initialize_tables(self):
+        """Initialize all required tables for the alert system"""
+        tables = [
+            "pricealerts",      # Migrated price alerts
+            "indicatoralerts",  # New indicator-based alerts
+            "candledata"        # Historical candle data for indicators
+        ]
+        
+        for table_name in tables:
+            self.create_table_if_not_exists(table_name)
         
     def get_table_client(self, table_name: str) -> TableClient:
         return self.service_client.get_table_client(table_name)
@@ -39,6 +86,25 @@ class AlertTableStorage:
             app_logger.info(f"Table {table_name} ready")
         except Exception as e:
             app_logger.error(f"Error creating table {table_name}: {e}")
+            
+    def cleanup_old_candle_data(self, days_to_keep: int = 30):
+        """Clean up old candle data to manage storage costs"""
+        try:
+            cutoff_date = datetime.now() - timedelta(days=days_to_keep)
+            candle_table = self.get_table_client("candledata")
+            
+            filter_query = f"Timestamp lt datetime'{cutoff_date.isoformat()}'"
+            old_entities = candle_table.query_entities(filter_query)
+            
+            deleted_count = 0
+            for entity in old_entities:
+                candle_table.delete_entity(entity["PartitionKey"], entity["RowKey"])
+                deleted_count += 1
+                
+            app_logger.info(f"Cleaned up {deleted_count} old candle records")
+            
+        except Exception as e:
+            app_logger.error(f"Error cleaning up old candle data: {e}")
 ```
 
 #### 1.2 Enhanced Alert Schema
@@ -99,7 +165,166 @@ class IndicatorAlert:
         )
 ```
 
-#### 1.3 Migration Strategy
+#### 1.3 Candle Data Storage System
+
+```python
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from typing import List, Optional, Dict, Any
+import json
+from shared_code.bybit_integration import get_crypto_candle
+from shared_code.table_storage import AlertTableStorage
+
+@dataclass
+class CandleData:
+    """Represents a single candle/OHLCV data point"""
+    symbol: str
+    timeframe: str  # "1m", "5m", "15m", "1h", "4h", "1d"
+    timestamp: datetime
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: float
+    
+    def to_table_entity(self) -> Dict[str, Any]:
+        """Convert to Azure Table Storage entity"""
+        return {
+            "PartitionKey": f"{self.symbol}_{self.timeframe}",
+            "RowKey": f"{int(self.timestamp.timestamp())}",
+            "Symbol": self.symbol,
+            "Timeframe": self.timeframe,
+            "Timestamp": self.timestamp,
+            "Open": self.open,
+            "High": self.high,
+            "Low": self.low,
+            "Close": self.close,
+            "Volume": self.volume,
+            "LastUpdated": datetime.now()
+        }
+    
+    @classmethod
+    def from_table_entity(cls, entity: Dict[str, Any]) -> 'CandleData':
+        """Create from Azure Table Storage entity"""
+        return cls(
+            symbol=entity["Symbol"],
+            timeframe=entity["Timeframe"],
+            timestamp=entity["Timestamp"],
+            open=float(entity["Open"]),
+            high=float(entity["High"]),
+            low=float(entity["Low"]),
+            close=float(entity["Close"]),
+            volume=float(entity["Volume"])
+        )
+
+class CandleDataManager:
+    """Manages candle data storage and retrieval for indicator calculations"""
+    
+    def __init__(self):
+        self.table_storage = AlertTableStorage()
+        self.candle_table = self.table_storage.get_table_client("candledata")
+        
+    def fetch_and_store_candles(self, symbol: str, timeframe: str, limit: int = 100) -> bool:
+        """Fetch candles from Bybit and store in Azure Table Storage"""
+        try:
+            # Use existing bybit integration to get candle data
+            raw_candles = get_crypto_candle(symbol, timeframe, limit)
+            
+            if not raw_candles or 'result' not in raw_candles:
+                return False
+            
+            candles_stored = 0
+            for candle_raw in raw_candles['result']:
+                candle = CandleData(
+                    symbol=symbol,
+                    timeframe=timeframe,
+                    timestamp=datetime.fromtimestamp(int(candle_raw['start_at'])),
+                    open=float(candle_raw['open']),
+                    high=float(candle_raw['high']),
+                    low=float(candle_raw['low']),
+                    close=float(candle_raw['close']),
+                    volume=float(candle_raw['volume'])
+                )
+                
+                # Use upsert to handle duplicates gracefully
+                self.candle_table.upsert_entity(candle.to_table_entity())
+                candles_stored += 1
+            
+            from telegram_logging_handler import app_logger
+            app_logger.info(f"Stored {candles_stored} candles for {symbol} {timeframe}")
+            return True
+            
+        except Exception as e:
+            from telegram_logging_handler import app_logger
+            app_logger.error(f"Error fetching/storing candles for {symbol}: {e}")
+            return False
+    
+    def get_historical_candles(self, symbol: str, timeframe: str, count: int) -> List[CandleData]:
+        """Retrieve historical candles for indicator calculation"""
+        try:
+            partition_key = f"{symbol}_{timeframe}"
+            
+            # Query last 'count' candles, ordered by timestamp (RowKey is timestamp)
+            filter_query = f"PartitionKey eq '{partition_key}'"
+            entities = list(self.candle_table.query_entities(
+                filter_query, 
+                select=["Symbol", "Timeframe", "Timestamp", "Open", "High", "Low", "Close", "Volume"]
+            ))
+            
+            # Sort by timestamp descending and take last 'count' items
+            entities.sort(key=lambda x: x["Timestamp"], reverse=True)
+            entities = entities[:count]
+            
+            # Convert to CandleData objects and reverse to get chronological order
+            candles = [CandleData.from_table_entity(entity) for entity in entities]
+            candles.reverse()  # Oldest to newest
+            
+            return candles
+            
+        except Exception as e:
+            from telegram_logging_handler import app_logger
+            app_logger.error(f"Error retrieving candles for {symbol}: {e}")
+            return []
+    
+    def get_closing_prices(self, symbol: str, timeframe: str, count: int) -> List[float]:
+        """Get just closing prices for RSI calculation"""
+        candles = self.get_historical_candles(symbol, timeframe, count)
+        return [candle.close for candle in candles]
+    
+    def ensure_sufficient_data(self, symbol: str, timeframe: str, required_count: int) -> bool:
+        """Ensure we have enough historical data, fetch if needed"""
+        try:
+            current_candles = self.get_historical_candles(symbol, timeframe, required_count)
+            
+            if len(current_candles) >= required_count:
+                # Check if data is recent (within last hour for shorter timeframes)
+                latest_candle = max(current_candles, key=lambda x: x.timestamp)
+                time_diff = datetime.now() - latest_candle.timestamp
+                
+                # Define freshness requirements based on timeframe
+                freshness_limits = {
+                    "1m": timedelta(minutes=5),
+                    "5m": timedelta(minutes=15),
+                    "15m": timedelta(minutes=30),
+                    "1h": timedelta(hours=2),
+                    "4h": timedelta(hours=6),
+                    "1d": timedelta(hours=25)
+                }
+                
+                if time_diff <= freshness_limits.get(timeframe, timedelta(hours=1)):
+                    return True
+            
+            # Need to fetch more/newer data
+            fetch_count = max(required_count * 2, 100)  # Fetch extra for buffer
+            return self.fetch_and_store_candles(symbol, timeframe, fetch_count)
+            
+        except Exception as e:
+            from telegram_logging_handler import app_logger
+            app_logger.error(f"Error ensuring data for {symbol}: {e}")
+            return False
+```
+
+#### 1.4 Migration Strategy
 ```python
 from shared_code.utils import get_alerts_from_azure, save_alerts_to_azure
 from shared_code.table_storage import AlertTableStorage
@@ -108,46 +333,82 @@ import json
 from datetime import datetime
 
 def migrate_existing_alerts_to_table():
-    """Migrate existing alerts.json to Azure Table Storage"""
+    """Migrate existing alerts.json to Azure Table Storage and initialize candle data"""
     try:
         # Get existing alerts from JSON
         existing_alerts = get_alerts_from_azure("alerts.json")
         if not existing_alerts:
-            return
+            print("No existing alerts found to migrate")
         
         table_storage = AlertTableStorage()
-        table_storage.create_table_if_not_exists("pricealerts")
-        table_storage.create_table_if_not_exists("indicatoralerts")
+        # Tables are automatically created in AlertTableStorage.__init__()
         
         price_table = table_storage.get_table_client("pricealerts")
         
+        # Initialize candle data manager for populating historical data
+        from shared_code.candle_data_manager import CandleDataManager
+        candle_manager = CandleDataManager()
+        
+        # Track unique symbols for candle data initialization
+        symbols_to_populate = set()
+        
         # Migrate price alerts with enhanced schema
-        for alert in existing_alerts:
-            entity = {
-                "PartitionKey": f"price_{alert.get('symbol', alert.get('symbol1', 'unknown'))}",
-                "RowKey": alert["id"],
-                "AlertType": alert.get("type", "single"),
-                "Symbol": alert.get("symbol", ""),
-                "Symbol1": alert.get("symbol1", ""),
-                "Symbol2": alert.get("symbol2", ""),
-                "Price": float(alert["price"]),
-                "Operator": alert["operator"],
-                "Description": alert["description"],
-                "Triggers": json.dumps(alert.get("triggers", [])),
-                "CreatedDate": alert.get("created_date", datetime.now().isoformat()),
-                "TriggeredDate": alert.get("triggered_date", ""),
-                "Enabled": True
-            }
-            price_table.upsert_entity(entity)
+        if existing_alerts:
+            for alert in existing_alerts:
+                entity = {
+                    "PartitionKey": f"price_{alert.get('symbol', alert.get('symbol1', 'unknown'))}",
+                    "RowKey": alert["id"],
+                    "AlertType": alert.get("type", "single"),
+                    "Symbol": alert.get("symbol", ""),
+                    "Symbol1": alert.get("symbol1", ""),
+                    "Symbol2": alert.get("symbol2", ""),
+                    "Price": float(alert["price"]),
+                    "Operator": alert["operator"],
+                    "Description": alert["description"],
+                    "Triggers": json.dumps(alert.get("triggers", [])),
+                    "CreatedDate": alert.get("created_date", datetime.now().isoformat()),
+                    "TriggeredDate": alert.get("triggered_date", ""),
+                    "Enabled": True
+                }
+                price_table.upsert_entity(entity)
+                
+                # Collect symbols for candle data initialization
+                if alert.get("symbol"):
+                    symbols_to_populate.add(alert["symbol"])
+                if alert.get("symbol1"):
+                    symbols_to_populate.add(alert["symbol1"])
+                if alert.get("symbol2"):
+                    symbols_to_populate.add(alert["symbol2"])
+        
+        # Initialize candle data for common timeframes
+        timeframes = ["5m", "15m", "1h", "4h", "1d"]
+        
+        # Add common symbols that might be used for indicator alerts
+        common_symbols = ["BTC", "ETH", "BNB", "SOL", "ADA", "DOT", "AVAX", "MATIC"]
+        symbols_to_populate.update(common_symbols)
+        
+        print(f"Initializing candle data for {len(symbols_to_populate)} symbols...")
+        
+        for symbol in symbols_to_populate:
+            for timeframe in timeframes:
+                success = candle_manager.fetch_and_store_candles(symbol, timeframe, 200)
+                if success:
+                    print(f"✓ Initialized {symbol} {timeframe} candle data")
+                else:
+                    print(f"✗ Failed to initialize {symbol} {timeframe} candle data")
         
         # Backup original alerts.json
-        backup_name = f"alerts_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-        save_alerts_to_azure(backup_name, existing_alerts)
+        if existing_alerts:
+            backup_name = f"alerts_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            save_alerts_to_azure(backup_name, existing_alerts)
+            print(f"Migration completed. Backup saved as {backup_name}")
         
-        print(f"Migration completed. Backup saved as {backup_name}")
+        print("Migration and candle data initialization completed successfully!")
         
     except Exception as e:
         print(f"Migration failed: {e}")
+        import traceback
+        traceback.print_exc()
 ```
 
 ### Phase 2: RSI Indicator Implementation (Week 2)
@@ -171,6 +432,8 @@ class RSIData:
 class RSICalculator:
     def __init__(self, period: int = 14):
         self.period = period
+        from shared_code.candle_data_manager import CandleDataManager
+        self.candle_manager = CandleDataManager()
     
     def calculate_rsi(self, prices: List[float]) -> Optional[float]:
         """Calculate RSI for given price series"""
@@ -189,16 +452,26 @@ class RSICalculator:
         return rsi.iloc[-1] if not pd.isna(rsi.iloc[-1]) else None
     
     def get_rsi_data(self, symbol: str, timeframe: str = "5m", overbought: float = 70, oversold: float = 30) -> Optional[RSIData]:
-        """Get current RSI data for symbol"""
+        """Get current RSI data for symbol using stored candle data"""
         try:
-            # Get historical price data (you'll need to implement this)
-            prices = self._get_historical_prices(symbol, timeframe, self.period + 10)
+            # Ensure we have sufficient candle data
+            required_candles = self.period + 20  # Extra buffer for calculation accuracy
+            
+            if not self.candle_manager.ensure_sufficient_data(symbol, timeframe, required_candles):
+                from telegram_logging_handler import app_logger
+                app_logger.warning(f"Could not ensure sufficient candle data for {symbol} {timeframe}")
+                return None
+            
+            # Get closing prices from stored candle data
+            prices = self.candle_manager.get_closing_prices(symbol, timeframe, required_candles)
             
             if len(prices) < self.period + 1:
+                from telegram_logging_handler import app_logger
+                app_logger.warning(f"Insufficient price data for RSI calculation: {len(prices)} < {self.period + 1}")
                 return None
             
             current_rsi = self.calculate_rsi(prices)
-            previous_rsi = self.calculate_rsi(prices[:-1])
+            previous_rsi = self.calculate_rsi(prices[:-1]) if len(prices) > self.period + 1 else None
             
             if current_rsi is None:
                 return None
@@ -223,12 +496,6 @@ class RSICalculator:
             from telegram_logging_handler import app_logger
             app_logger.error(f"Error calculating RSI for {symbol}: {e}")
             return None
-    
-    def _get_historical_prices(self, symbol: str, timeframe: str, count: int) -> List[float]:
-        """Get historical closing prices - implement based on your data source"""
-        # This is a placeholder - you'll need to implement based on your price data source
-        # For now, return mock data or integrate with your existing price fetching logic
-        return []
 ```
 
 #### 2.2 Indicator Alert Processing
@@ -717,11 +984,54 @@ if __name__ == '__main__':
 
 | Phase | Week | Key Deliverables | Risk Level |
 |-------|------|------------------|------------|
-| 1 | Week 1 | Azure Table Storage setup, Enhanced schema, Migration tools | Medium |
-| 2 | Week 2 | RSI calculator, Indicator processing logic | High |
-| 3 | Week 3 | API endpoints for indicator alerts | Medium |
-| 4 | Week 4 | Enhanced alert management, UI updates | Low |
-| 5 | Week 5 | Documentation, testing, deployment | Low |
+| 1 | Week 1 | **Foundation Setup**<br/>• Azure Table Storage (3 tables)<br/>• Candle data storage system<br/>• Migration tools and strategy<br/>• Enhanced alert schema | Medium |
+| 2 | Week 2 | **RSI Implementation**<br/>• RSI calculator with table storage<br/>• Candle data fetching/caching<br/>• Indicator processing logic<br/>• Data freshness management | High |
+| 3 | Week 3 | **API Enhancement**<br/>• Create indicator alert endpoint<br/>• Enhanced alert management<br/>• Integration with existing triggers | Medium |
+| 4 | Week 4 | **System Integration**<br/>• Enhanced get/remove endpoints<br/>• Timer function updates<br/>• Performance optimization | Low |
+| 5 | Week 5 | **Testing & Deployment**<br/>• Unit/integration testing<br/>• Documentation updates<br/>• Production deployment | Low |
+
+## Storage Architecture Overview
+
+### Table Structure
+1. **`pricealerts`** - Migrated price-based alerts
+   - PartitionKey: `price_{symbol}`
+   - RowKey: `{alert_id}`
+
+2. **`indicatoralerts`** - New indicator-based alerts  
+   - PartitionKey: `indicator_{symbol}`
+   - RowKey: `{alert_id}`
+
+3. **`candledata`** - Historical OHLCV data
+   - PartitionKey: `{symbol}_{timeframe}`
+   - RowKey: `{timestamp}`
+   - Auto-cleanup after 30 days
+
+### Data Flow
+```
+Bybit API → CandleDataManager → Azure Table Storage → RSI Calculator → Alert Processing
+```
+
+## Required File Structure
+
+After implementing this feature, your project structure will include:
+
+```text
+shared_code/
+├── alert_models.py          # IndicatorAlert, CandleData models
+├── table_storage.py         # AlertTableStorage class
+├── candle_data_manager.py   # CandleDataManager class
+└── indicators/
+    ├── __init__.py
+    └── rsi_calculator.py     # RSICalculator and RSIData
+    
+create_indicator_alert/      # New Azure Function
+├── __init__.py
+└── function.json
+
+remove_indicator_alert/      # New Azure Function  
+├── __init__.py
+└── function.json
+```
 
 ## Future Extension Points
 
@@ -730,7 +1040,7 @@ if __name__ == '__main__':
 3. **Complex Conditions**: AND/OR logic between multiple indicators
 4. **Backtesting**: Historical performance analysis of indicator strategies
 5. **ML Integration**: Predictive indicators using machine learning
+6. **Real-time Data**: WebSocket integration for live candle updates
+7. **Advanced Alerts**: Multi-condition alerts combining price and indicators
 
-This plan maintains backward compatibility with your existing price alerts while adding a robust, extensible framework for technical indicator alerts using Azure Table Storage.
-
-Similar code found with 1 license type
+This enhanced plan maintains backward compatibility with your existing price alerts while adding a robust, extensible framework for technical indicator alerts using Azure Table Storage with efficient candle data management.
