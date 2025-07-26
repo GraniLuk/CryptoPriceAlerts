@@ -1,7 +1,8 @@
 import logging
 import os
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, List, Dict, Any
+from datetime import datetime, timedelta
 
 import requests
 
@@ -61,6 +62,18 @@ ASSET_TO_COINGECKO_API_ID = {
 }
 
 KUCOIN_SYMBOLS = {"AKT", "KCS", "DYM", "VIRTUAL"}
+
+# Timeframe mapping for different exchanges
+TIMEFRAME_MAPPING = {
+    "binance": {
+        "1m": "1m", "5m": "5m", "15m": "15m", 
+        "1h": "1h", "4h": "4h", "1d": "1d"
+    },
+    "kucoin": {
+        "1m": "1min", "5m": "5min", "15m": "15min",
+        "1h": "1hour", "4h": "4hour", "1d": "1day"
+    }
+}
 
 
 def get_crypto_price(symbol):
@@ -301,3 +314,159 @@ def get_gst_bsc_price_from_coinmarketcap():
     except requests.RequestException as e:
         app_logger.error(f"Request exception occurred: {e}")
         return None
+
+
+def get_crypto_candle_historical(symbol: str, timeframe: str = "5m", limit: int = 100) -> Optional[List[Dict[str, Any]]]:
+    """Get historical candle data with configurable timeframe"""
+    try:
+        if symbol in KUCOIN_SYMBOLS:
+            return get_crypto_candle_historical_kucoin(symbol, timeframe, limit)
+        elif symbol == "GST":
+            # GST only has current price, so we'll create mock historical data
+            current_price = get_gst_bsc_price_from_coinmarketcap()
+            if current_price:
+                return create_mock_historical_data(current_price, timeframe, limit)
+            return None
+        else:
+            return get_crypto_candle_historical_binance(symbol, timeframe, limit)
+    except Exception as e:
+        app_logger.error(f"Error fetching historical candles for {symbol}: {e}")
+        return None
+
+
+def get_crypto_candle_historical_binance(symbol: str, timeframe: str, limit: int) -> Optional[List[Dict[str, Any]]]:
+    """Get historical candle data from Binance with configurable timeframe"""
+    binance_symbol = f"{symbol.upper()}USDT"
+    binance_timeframe = TIMEFRAME_MAPPING["binance"].get(timeframe, "5m")
+    
+    url = f"https://api.binance.com/api/v3/klines?symbol={binance_symbol}&interval={binance_timeframe}&limit={limit}"
+    
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            data = response.json()
+            
+            if data and len(data) > 0:
+                candles = []
+                for candle in data:
+                    # Binance kline format: [Open time, Open, High, Low, Close, Volume, ...]
+                    candles.append({
+                        'timestamp': datetime.fromtimestamp(int(candle[0]) / 1000),
+                        'open': float(candle[1]),
+                        'high': float(candle[2]),
+                        'low': float(candle[3]),
+                        'close': float(candle[4]),
+                        'volume': float(candle[5])
+                    })
+                return candles
+            else:
+                app_logger.error(f"No historical candle data returned for {symbol}")
+                return None
+        else:
+            app_logger.error(f"Error fetching historical candles for {symbol}: {response.status_code}")
+            return None
+    except requests.RequestException as e:
+        app_logger.error(f"Request exception during historical candle fetch: {e}")
+        return None
+
+
+def get_crypto_candle_historical_kucoin(symbol: str, timeframe: str, limit: int) -> Optional[List[Dict[str, Any]]]:
+    """Get historical candle data from KuCoin with configurable timeframe"""
+    kucoin_symbol = f"{symbol.upper()}-USDT"
+    kucoin_timeframe = TIMEFRAME_MAPPING["kucoin"].get(timeframe, "5min")
+    
+    url = f"https://api.kucoin.com/api/v1/market/candles?type={kucoin_timeframe}&symbol={kucoin_symbol}&limit={limit}"
+    
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            data = response.json()
+            
+            if data.get("code") == "200000" and data.get("data") and len(data["data"]) > 0:
+                candles = []
+                for candle in data["data"]:
+                    # KuCoin candle format: [timestamp, open, close, high, low, volume, turnover]
+                    candles.append({
+                        'timestamp': datetime.fromtimestamp(int(candle[0])),
+                        'open': float(candle[1]),
+                        'high': float(candle[3]),
+                        'low': float(candle[4]),
+                        'close': float(candle[2]),
+                        'volume': float(candle[5])
+                    })
+                # Sort by timestamp (oldest first) for consistent processing
+                candles.sort(key=lambda x: x['timestamp'])
+                return candles
+            else:
+                app_logger.error(f"No historical candle data returned for {symbol} from KuCoin")
+                return None
+        else:
+            app_logger.error(f"Error fetching historical candles for {symbol} from KuCoin: {response.status_code}")
+            return None
+    except requests.RequestException as e:
+        app_logger.error(f"Request exception during KuCoin historical candle fetch: {e}")
+        return None
+
+
+def create_mock_historical_data(current_price: float, timeframe: str, limit: int) -> List[Dict[str, Any]]:
+    """Create mock historical data for symbols that only have current price (like GST)"""
+    candles = []
+    
+    # Calculate time delta based on timeframe
+    time_deltas = {
+        "1m": timedelta(minutes=1),
+        "5m": timedelta(minutes=5),
+        "15m": timedelta(minutes=15),
+        "1h": timedelta(hours=1),
+        "4h": timedelta(hours=4),
+        "1d": timedelta(days=1)
+    }
+    
+    delta = time_deltas.get(timeframe, timedelta(minutes=5))
+    current_time = datetime.now()
+    
+    # Create historical data with slight price variations (±2%)
+    import random
+    for i in range(limit):
+        timestamp = current_time - (delta * (limit - i))
+        
+        # Add small random variations to simulate price movement
+        variation = random.uniform(-0.02, 0.02)  # ±2%
+        price_with_variation = current_price * (1 + variation)
+        
+        # Create OHLC with small variations
+        high_variation = random.uniform(0, 0.01)  # 0-1% higher
+        low_variation = random.uniform(-0.01, 0)  # 0-1% lower
+        
+        candles.append({
+            'timestamp': timestamp,
+            'open': price_with_variation,
+            'high': price_with_variation * (1 + high_variation),
+            'low': price_with_variation * (1 + low_variation),
+            'close': price_with_variation,
+            'volume': 0.0  # No volume data available
+        })
+    
+    return candles
+
+
+def get_crypto_candle_enhanced(symbol: str, timeframe: str = "5m") -> Optional[CandleData]:
+    """Enhanced version of get_crypto_candle with timeframe support"""
+    # For backwards compatibility, if timeframe is 5m, use existing method
+    if timeframe == "5m":
+        return get_crypto_candle(symbol)
+    
+    # For other timeframes, get the latest candle from historical data
+    historical_data = get_crypto_candle_historical(symbol, timeframe, 1)
+    
+    if historical_data and len(historical_data) > 0:
+        latest_candle = historical_data[-1]
+        return CandleData(
+            open=latest_candle['open'],
+            high=latest_candle['high'],
+            low=latest_candle['low'],
+            close=latest_candle['close']
+        )
+    
+    # Fallback to current method if historical data unavailable
+    return get_crypto_candle(symbol)
