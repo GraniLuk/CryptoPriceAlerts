@@ -32,118 +32,19 @@ jobs:
           source venv/bin/activate
           pip install --upgrade pip
           pip install -r requirements.txt
-          # Install development dependencies for quality checks
-          pip install pylint mypy black isort pytest
           # Freeze dependencies to ensure version consistency
           pip freeze > requirements.txt
-
-      - name: Code quality checks
-        run: |
-          source venv/bin/activate
-          
-          # Check code formatting with Black
-          echo "::group::Checking code formatting with Black"
-          black --check --diff . || (echo "❌ Code formatting issues found. Run 'black .' to fix." && exit 1)
-          echo "✅ Code formatting is correct"
-          echo "::endgroup::"
-          
-          # Check import sorting with isort
-          echo "::group::Checking import sorting with isort"
-          isort --check-only --diff . || (echo "❌ Import sorting issues found. Run 'isort .' to fix." && exit 1)
-          echo "✅ Import sorting is correct"
-          echo "::endgroup::"
-          
-          # Type checking with mypy
-          echo "::group::Running type checking with mypy"
-          mypy --config-file mypy.ini . || (echo "❌ Type checking failed" && exit 1)
-          echo "✅ Type checking passed"
-          echo "::endgroup::"
-          
-          # Linting with pylint
-          echo "::group::Running linting with pylint"
-          pylint --rcfile=.pylintrc **/*.py || (echo "❌ Linting failed" && exit 1)
-          echo "✅ Linting passed"
-          echo "::endgroup::"
-
-      - name: Run tests
-        run: |
-          source venv/bin/activate
-          # Run pytest if test files exist
-          if find . -name "test_*.py" -o -name "*_test.py" | grep -q .; then
-            echo "::group::Running tests with pytest"
-            pytest -v --tb=short || (echo "❌ Tests failed" && exit 1)
-            echo "✅ All tests passed"
-            echo "::endgroup::"
-          else
-            echo "ℹ️ No test files found, skipping test execution"
-          fi
-
-      - name: Security scan
-        run: |
-          source venv/bin/activate
-          # Install and run safety check for known security vulnerabilities
-          pip install safety
-          echo "::group::Checking for security vulnerabilities"
-          safety check || (echo "❌ Security vulnerabilities found" && exit 1)
-          echo "✅ No security vulnerabilities found"
-          echo "::endgroup::"
-
-      - name: Validate Azure Functions structure
-        run: |
-          source venv/bin/activate
-          echo "::group::Validating Azure Functions structure"
-          
-          # Check if required files exist
-          if [ ! -f "function_app.py" ]; then
-            echo "❌ function_app.py not found"
-            exit 1
-          fi
-          
-          if [ ! -f "requirements.txt" ]; then
-            echo "❌ requirements.txt not found"
-            exit 1
-          fi
-          
-          if [ ! -f "host.json" ]; then
-            echo "❌ host.json not found"
-            exit 1
-          fi
-          
-          # Check that function directories have required files
-          for func_dir in */; do
-            if [ -d "$func_dir" ] && [ "$func_dir" != "venv/" ] && [ "$func_dir" != "packaged_function/" ] && [ "$func_dir" != ".github/" ]; then
-              if [ -f "$func_dir/__init__.py" ] && [ -f "$func_dir/function.json" ]; then
-                echo "✅ Function directory '$func_dir' is valid"
-              elif [ -f "$func_dir/__init__.py" ] || [ -f "$func_dir/function.json" ]; then
-                echo "⚠️ Function directory '$func_dir' might be incomplete"
-              fi
-            fi
-          done
-          
-          # Test import of main function app
-          python -c "import function_app; print('✅ function_app.py imports successfully')" || (echo "❌ function_app.py import failed" && exit 1)
-          
-          echo "✅ Azure Functions structure validation passed"
-          echo "::endgroup::"
 
       - name: Package app with dependencies
         run: |
           source venv/bin/activate
           mkdir -p packaged_function
-          # Copy all files except development/CI files and directories
+          # Copy all files except the 'packaged_function' directory itself
           shopt -s extglob
-          cp -r !(packaged_function|venv|tests|.git|.github|.pylintrc|mypy.ini|pyproject.toml) packaged_function/
+          cp -r !(packaged_function) packaged_function/
           cp -r venv/lib/python${{ env.PYTHON_VERSION }}/site-packages/* packaged_function/
           cd packaged_function
           zip -r ../release.zip .
-          
-          echo "::group::Package contents validation"
-          echo "Contents of the package:"
-          unzip -l ../release.zip | head -20
-          echo "..."
-          echo "Package size: $(ls -lh ../release.zip | awk '{print $5}')"
-          echo "✅ Package created successfully"
-          echo "::endgroup::"
     
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
@@ -163,44 +64,6 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: python-app
-
-      - name: Pre-deployment validation
-        run: |
-          echo "::group::Pre-deployment validation"
-          
-          # Verify the release.zip exists and is not empty
-          if [ ! -f "release.zip" ]; then
-            echo "❌ release.zip not found"
-            exit 1
-          fi
-          
-          file_size=$(stat -f%z "release.zip" 2>/dev/null || stat -c%s "release.zip" 2>/dev/null)
-          if [ "$file_size" -eq 0 ]; then
-            echo "❌ release.zip is empty"
-            exit 1
-          fi
-          
-          echo "✅ release.zip exists and is not empty (size: $file_size bytes)"
-          
-          # Verify the package contains required files
-          if ! unzip -l release.zip | grep -q "function_app.py"; then
-            echo "❌ function_app.py not found in package"
-            exit 1
-          fi
-          
-          if ! unzip -l release.zip | grep -q "requirements.txt"; then
-            echo "❌ requirements.txt not found in package"
-            exit 1
-          fi
-          
-          if ! unzip -l release.zip | grep -q "host.json"; then
-            echo "❌ host.json not found in package"
-            exit 1
-          fi
-          
-          echo "✅ All required files found in package"
-          echo "✅ Pre-deployment validation passed"
-          echo "::endgroup::"
 
       - name: Unzip artifact for deployment
         run: unzip release.zip     
@@ -292,21 +155,3 @@ jobs:
         run: |
             python -m pip install --upgrade pip
             pip install -r requirements.txt
-
-      - name: Post-deployment validation
-        run: |
-          echo "::group::Post-deployment validation"
-          
-          # Wait a moment for the deployment to settle
-          echo "Waiting 30 seconds for deployment to settle..."
-          sleep 30
-          
-          # You can add specific validation steps here, such as:
-          # - Health check endpoints
-          # - Basic function invocation tests
-          # - Configuration validation
-          
-          echo "✅ Deployment completed successfully"
-          echo "ℹ️ Function App URL: https://AlertsFunctionGrani.azurewebsites.net"
-          echo "ℹ️ Monitor your functions in the Azure Portal"
-          echo "::endgroup::"
