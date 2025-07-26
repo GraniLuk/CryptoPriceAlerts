@@ -14,9 +14,7 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
         logging.info("Attempting to fetch alerts from Azure...")
         alerts = get_alerts_from_azure("alerts.json")
         if alerts is None:
-            return func.HttpResponse(
-                "Error retrieving alerts from Azure", status_code=500
-            )
+            return func.HttpResponse("Error retrieving alerts from Azure", status_code=500)
         logging.info(f"Successfully retrieved {len(alerts)} alerts")
 
         alerts = [alert for alert in alerts if not alert["triggered_date"]]
@@ -49,19 +47,13 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
                                 message += f"  Side: {params.get('side', 'N/A')}\n"
                                 message += f"  Quantity: {params.get('qty', 'N/A')}\n"
                                 if "leverage" in params:
-                                    message += (
-                                        f"  Leverage: {params.get('leverage')}x\n"
-                                    )
+                                    message += f"  Leverage: {params.get('leverage')}x\n"
                             elif trigger["action"] == "set_tp_sl":
                                 params = trigger.get("params", {})
                                 if "take_profit" in params:
-                                    message += (
-                                        f"  Take Profit: ${params.get('take_profit')}\n"
-                                    )
+                                    message += f"  Take Profit: ${params.get('take_profit')}\n"
                                 if "stop_loss" in params:
-                                    message += (
-                                        f"  Stop Loss: ${params.get('stop_loss')}\n"
-                                    )
+                                    message += f"  Stop Loss: ${params.get('stop_loss')}\n"
 
                 message += "---------------\n"
 
@@ -86,19 +78,13 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
                                 message += f"  Side: {params.get('side', 'N/A')}\n"
                                 message += f"  Quantity: {params.get('qty', 'N/A')}\n"
                                 if "leverage" in params:
-                                    message += (
-                                        f"  Leverage: {params.get('leverage')}x\n"
-                                    )
+                                    message += f"  Leverage: {params.get('leverage')}x\n"
                             elif trigger["action"] == "set_tp_sl":
                                 params = trigger.get("params", {})
                                 if "take_profit" in params:
-                                    message += (
-                                        f"  Take Profit: ${params.get('take_profit')}\n"
-                                    )
+                                    message += f"  Take Profit: ${params.get('take_profit')}\n"
                                 if "stop_loss" in params:
-                                    message += (
-                                        f"  Stop Loss: ${params.get('stop_loss')}\n"
-                                    )
+                                    message += f"  Stop Loss: ${params.get('stop_loss')}\n"
 
                 message += "---------------\n"
 
@@ -111,9 +97,7 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
     except Exception as e:
         app_logger.error(f"Error in get_all_alerts: {str(e)}")
         app_logger.error(f"Error type: {type(e).__name__}")
-        app_logger.error(
-            "Error details: ", exc_info=True
-        )  # This will log the full stack trace
+        app_logger.error("Error details: ", exc_info=True)  # This will log the full stack trace
         return func.HttpResponse(
             body=json.dumps({"error": str(e), "error_type": type(e).__name__}),
             mimetype="application/json",

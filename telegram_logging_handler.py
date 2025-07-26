@@ -2,6 +2,7 @@ import logging
 import requests
 import os
 
+
 class TelegramHandler(logging.Handler):
     def __init__(self, token, chat_id):
         super().__init__()
@@ -14,19 +15,16 @@ class TelegramHandler(logging.Handler):
 
     def send_telegram_message(self, message):
         url = f"https://api.telegram.org/bot{self.token}/sendMessage"
-        payload = {
-            'chat_id': self.chat_id,
-            'text': message,
-            'parse_mode': 'Markdown'
-        }
+        payload = {"chat_id": self.chat_id, "text": message, "parse_mode": "Markdown"}
         requests.post(url, json=payload)
 
+
 def setup_logger():
-    logger = logging.getLogger('AppLogger')
+    logger = logging.getLogger("AppLogger")
     logger.setLevel(logging.INFO)  # Set the logger's level to the lowest level you want to capture
 
     # Formatter
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
     # Console Handler (INFO level)
     console_handler = logging.StreamHandler()
@@ -46,6 +44,7 @@ def setup_logger():
         print("Telegram logging not configured due to missing environment variables")
 
     return logger
+
 
 # Create the logger instance
 app_logger = setup_logger()

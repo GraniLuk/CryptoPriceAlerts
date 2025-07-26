@@ -34,16 +34,14 @@ class BybitClient:
             raise ValueError("Bybit API key and secret must be provided")
 
         # Set the base URL based on testnet flag
-        self.base_url = (
-            "https://api-testnet.bybit.com" if testnet else "https://api.bybit.com"
-        )
+        self.base_url = "https://api-testnet.bybit.com" if testnet else "https://api.bybit.com"
         self.recvWindow = 5000
 
     def _generate_signature(self, params: Dict[str, Any]) -> str:
         """Generate HMAC SHA256 signature for API request"""
         if not self.api_secret:
             raise ValueError("API secret is required for signature generation")
-        
+
         ordered_params = sorted(params.items())
         query_string = urlencode(ordered_params)
         signature = hmac.new(
@@ -281,21 +279,19 @@ def execute_bybit_action(action_type: str, params: Dict[str, Any]) -> Dict[str, 
         Result of the action
     """
     try:
-        client = BybitClient(
-            testnet=os.environ.get("BYBIT_TESTNET", "false").lower() == "true"
-        )
+        client = BybitClient(testnet=os.environ.get("BYBIT_TESTNET", "false").lower() == "true")
 
         if action_type == "open_position":
             # Validate required parameters
             symbol = params.get("symbol")
             side = params.get("side")
             qty = params.get("qty")
-            
+
             if not symbol or not side or qty is None:
                 error_msg = "Missing required parameters for open_position: symbol, side, qty"
                 app_logger.error(error_msg)
                 return {"success": False, "message": error_msg}
-            
+
             return client.open_position(
                 symbol=symbol,
                 side=side,

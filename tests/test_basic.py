@@ -39,9 +39,7 @@ def test_bybit_client_initialization():
     # This should not raise an error with None values
     try:
         # This will raise ValueError due to missing credentials, which is expected
-        with pytest.raises(
-            ValueError, match="Bybit API key and secret must be provided"
-        ):
+        with pytest.raises(ValueError, match="Bybit API key and secret must be provided"):
             BybitClient(api_key=None, api_secret=None)
     except Exception as e:
         pytest.fail(f"Unexpected error during BybitClient initialization: {e}")

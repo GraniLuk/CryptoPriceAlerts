@@ -73,14 +73,10 @@ async def process_alerts():
 
                     if condition_met:
                         # For display in notification, use current close prices
-                        current_ratio = (
-                            candle1.close / candle2.close if candle2.close != 0 else 0
-                        )
+                        current_ratio = candle1.close / candle2.close if candle2.close != 0 else 0
                         message = f"🚨 Ratio Alert for {alert['symbol1']}/{alert['symbol2']}!\n"
                         message += f"Current ratio: {current_ratio:.4f}\n"
-                        message += (
-                            f"Alert condition: {alert['price']} {alert['operator']}\n"
-                        )
+                        message += f"Alert condition: {alert['price']} {alert['operator']}\n"
                         message += f"Current prices:\n"
                         message += f"{alert['symbol1']}: ${candle1.close:.2f} (Range: ${candle1.low:.2f}-${candle1.high:.2f})\n"
                         message += f"{alert['symbol2']}: ${candle2.close:.2f} (Range: ${candle2.low:.2f}-${candle2.high:.2f})\n"
@@ -99,9 +95,7 @@ async def process_alerts():
                         await send_telegram_message(
                             telegram_enabled, telegram_token, telegram_chat_id, message
                         )
-                        logging.info(
-                            f"Ratio alert sent for {alert['symbol1']}/{alert['symbol2']}"
-                        )
+                        logging.info(f"Ratio alert sent for {alert['symbol1']}/{alert['symbol2']}")
 
             else:
                 # Handle standard single symbol alerts
@@ -110,17 +104,15 @@ async def process_alerts():
 
                 if candle:
                     # Check if candle meets condition
-                    condition_met = candle.meets_condition(
-                        alert["price"], alert["operator"]
-                    )
+                    condition_met = candle.meets_condition(alert["price"], alert["operator"])
 
                     if condition_met:
                         message = f"🚨 Alert for {alert['symbol']}!\n"
                         message += f"Current price: ${candle.close:.2f}\n"
-                        message += f"Price range in last 5 min: ${candle.low:.2f}-${candle.high:.2f}\n"
                         message += (
-                            f"Alert condition: ${alert['price']} {alert['operator']}\n"
+                            f"Price range in last 5 min: ${candle.low:.2f}-${candle.high:.2f}\n"
                         )
+                        message += f"Alert condition: ${alert['price']} {alert['operator']}\n"
                         message += f"Description: {alert['description']}"
 
                         # Execute triggers if defined

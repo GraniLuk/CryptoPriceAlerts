@@ -11,9 +11,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
     try:
         req_body = req.get_json()
-        alert_type = req_body.get(
-            "type", "single"
-        )  # Default to single for backward compatibility
+        alert_type = req_body.get("type", "single")  # Default to single for backward compatibility
 
         if alert_type == "ratio":
             symbol1 = req_body.get("symbol1").upper()
@@ -96,9 +94,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
                         )
 
                     params = trigger.get("params", {})
-                    if action == "open_position" and (
-                        "side" not in params or "qty" not in params
-                    ):
+                    if action == "open_position" and ("side" not in params or "qty" not in params):
                         return func.HttpResponse(
                             "Open position actions require 'side' and 'qty' parameters.",
                             status_code=400,

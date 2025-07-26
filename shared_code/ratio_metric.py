@@ -9,9 +9,7 @@ import os
 connection_string = os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING")
 
 # Initialize the exporter
-exporter = AzureMonitorMetricExporter(
-    connection_string=connection_string
-)
+exporter = AzureMonitorMetricExporter(connection_string=connection_string)
 
 # Create a metric reader
 reader = PeriodicExportingMetricReader(exporter)
@@ -22,6 +20,7 @@ metrics.set_meter_provider(provider)
 
 # Create a meter
 meter = metrics.get_meter(__name__)
+
 
 def log_custom_metric(name, value, attributes=None):
     gauge = meter.create_gauge(name)

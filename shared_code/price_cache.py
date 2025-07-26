@@ -14,5 +14,6 @@ class PriceCache:
         """Clear all cached prices"""
         self._cache.clear()
 
+
 # Global instance for easy access
 price_cache = PriceCache()
