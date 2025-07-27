@@ -8,7 +8,9 @@ A serverless application that tracks cryptocurrency prices and sends customizabl
 
 - 📈 Real-time price monitoring
 - 🔄 Ratio-based trading pair alerts
-- 📊 **NEW: Technical Indicator Alerts (RSI, MACD, Bollinger Bands)**
+- 📊 **NEW: Technical Indicator Alerts** - Automatic RSI threshold monitoring
+- 🎯 **Smart RSI Monitoring** - Triggers on any threshold crossover automatically
+- 🔧 **Manual Control** - You decide when to stop monitoring each symbol
 - 💬 Telegram notifications
 - ⚡ Serverless Azure Functions
 - 🔐 Secure storage with Azure Table Storage
@@ -45,7 +47,7 @@ A serverless application that tracks cryptocurrency prices and sends customizabl
 
 - Monitor technical indicators like RSI, MACD, Bollinger Bands
 - Configurable parameters for each indicator
-- Multiple condition types (overbought, oversold, crossovers)
+- **Automatic comprehensive monitoring** - no need to specify specific conditions
 - Integration with existing trigger system
 
 ##### Supported Indicators
@@ -54,9 +56,21 @@ A serverless application that tracks cryptocurrency prices and sends customizabl
 
 - Configurable period (default: 14)
 - Custom overbought/oversold levels (default: 70/30)
-- Crossover detection (entry/exit signals)
+- **Automatic threshold crossover monitoring** - monitors all RSI movements
 - Multiple timeframes (1m, 5m, 15m, 1h, 4h, 1d)
-- Conditions: `overbought`, `oversold`, `crossover_overbought`, `crossover_oversold`
+- **Triggers on any significant RSI movement:**
+  - RSI crosses above overbought level
+  - RSI crosses below oversold level
+  - RSI exits overbought zone (crosses back below overbought)
+  - RSI exits oversold zone (crosses back above oversold)
+
+**How RSI Alerts Work Now:**
+
+1. **Simplified Setup**: Just specify symbol, timeframe, and threshold levels
+2. **Comprehensive Monitoring**: Automatically detects all important RSI movements
+3. **Continuous Alerts**: Get notified of every significant RSI change
+4. **Manual Control**: Set `triggered_date` manually when you want to stop monitoring
+5. **No Missed Signals**: Never miss important entry/exit opportunities
 
 **Coming Soon:** MACD, Bollinger Bands, Moving Averages
 
@@ -204,12 +218,11 @@ POST /api/insert_new_alert_grani
 ```http
 POST /api/create_indicator_alert
 
-# RSI Overbought Alert
+# RSI Threshold Monitoring Alert (Automatic - No condition parameter needed)
 {
     "symbol": "BTC",
     "indicator_type": "rsi",
-    "condition": "overbought",
-    "description": "BTC RSI overbought alert",
+    "description": "BTC RSI threshold monitoring - all crossovers",
     "config": {
         "period": 14,
         "overbought_level": 75,
@@ -218,34 +231,48 @@ POST /api/create_indicator_alert
     }
 }
 
-# RSI Crossover Alert with Bybit Trigger
+# ETH RSI Alert with Standard Levels
 {
     "symbol": "ETH",
     "indicator_type": "rsi",
-    "condition": "crossover_oversold",
-    "description": "ETH RSI crossed below oversold - Buy Signal",
+    "description": "ETH RSI monitoring for entry/exit signals",
     "config": {
         "period": 21,
         "overbought_level": 70,
-        "oversold_level": 20,
+        "oversold_level": 30,
         "timeframe": "15m"
     }
 }
 
-# RSI Alert with Trading Action
+# SOL RSI Alert with Bybit Trading Action
 {
     "symbol": "SOL",
     "indicator_type": "rsi",
-    "condition": "overbought",
-    "description": "SOL RSI overbought - Take profit",
+    "description": "SOL RSI monitoring with automated actions",
     "config": {
         "period": 14,
         "overbought_level": 80,
         "oversold_level": 20,
         "timeframe": "1h"
-    }
+    },
+    "triggers": [
+        {
+            "type": "bybit_action",
+            "action": "close_position",
+            "params": {
+                "symbol": "SOLUSDT"
+            }
+        }
+    ]
 }
 ```
+
+**Important Notes:**
+
+- **No `condition` parameter required** - all RSI alerts automatically monitor threshold crossovers
+- **Comprehensive monitoring** - triggers on any significant RSI movement (entering/exiting overbought/oversold zones)
+- **Manual control** - `triggered_date` is not automatically set, giving you control over when to stop monitoring
+- **Flexible thresholds** - customize overbought/oversold levels per your trading strategy
 
 ### Remove Alert
 

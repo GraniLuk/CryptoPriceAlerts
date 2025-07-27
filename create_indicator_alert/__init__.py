@@ -19,15 +19,17 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
     {
         "symbol": "BTC",
         "indicator_type": "rsi",
-        "condition": "overbought",
         "config": {
             "period": 14,
             "overbought_level": 75,
             "oversold_level": 25,
             "timeframe": "5m"
         },
-        "description": "BTC RSI overbought alert"
+        "description": "BTC RSI threshold monitoring alert"
     }
+    
+    Note: The 'condition' parameter is no longer required. 
+    All RSI alerts now monitor for any threshold crossovers automatically.
     """
     app_logger.info('Creating new indicator alert via HTTP API')
     
@@ -57,7 +59,7 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
             )
         
         # Validate required fields
-        required_fields = ["symbol", "indicator_type", "condition", "config"]
+        required_fields = ["symbol", "indicator_type", "config"]
         missing_fields = [field for field in required_fields if field not in req_body]
         if missing_fields:
             return func.HttpResponse(
@@ -74,19 +76,8 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
                 mimetype="application/json"
             )
         
-        # Validate RSI condition
-        valid_rsi_conditions = [
-            "overbought", "oversold", "crossover_overbought", 
-            "crossover_oversold", "exit_overbought", "exit_oversold"
-        ]
-        if req_body["condition"] not in valid_rsi_conditions:
-            return func.HttpResponse(
-                json.dumps({
-                    "error": f"Invalid RSI condition. Valid options: {', '.join(valid_rsi_conditions)}"
-                }),
-                status_code=400,
-                mimetype="application/json"
-            )
+        # Set default condition for RSI (no longer used but kept for compatibility)
+        condition = req_body.get("condition", "threshold_crossover")
         
         # Validate config for RSI
         config = req_body["config"]
@@ -150,24 +141,10 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
         # Create standardized Telegram trigger message
         symbol = req_body["symbol"].upper()
         indicator_type = req_body["indicator_type"].upper()
-        condition = req_body["condition"]
         timeframe = rsi_config["timeframe"]
         
-        # Generate appropriate message based on condition
-        if condition == "overbought":
-            message = f"🔴 {symbol} RSI Alert: Overbought condition detected on {timeframe} timeframe (RSI > {rsi_config['overbought_level']})"
-        elif condition == "oversold":
-            message = f"🟢 {symbol} RSI Alert: Oversold condition detected on {timeframe} timeframe (RSI < {rsi_config['oversold_level']})"
-        elif condition == "crossover_overbought":
-            message = f"📈 {symbol} RSI Alert: Crossed above overbought level ({rsi_config['overbought_level']}) on {timeframe} timeframe"
-        elif condition == "crossover_oversold":
-            message = f"📉 {symbol} RSI Alert: Crossed below oversold level ({rsi_config['oversold_level']}) on {timeframe} timeframe"
-        elif condition == "exit_overbought":
-            message = f"🔄 {symbol} RSI Alert: Exited overbought zone (RSI < {rsi_config['overbought_level']}) on {timeframe} timeframe"
-        elif condition == "exit_oversold":
-            message = f"🔄 {symbol} RSI Alert: Exited oversold zone (RSI > {rsi_config['oversold_level']}) on {timeframe} timeframe"
-        else:
-            message = f"📊 {symbol} {indicator_type} Alert: {condition} condition on {timeframe} timeframe"
+        # Generate message for threshold crossover monitoring
+        message = f"� {symbol} RSI Alert: Monitoring threshold crossovers on {timeframe} timeframe (Overbought: {rsi_config['overbought_level']}, Oversold: {rsi_config['oversold_level']})"
         
         # Always use Telegram trigger
         triggers = [{"type": "telegram", "message": message}]
@@ -179,7 +156,7 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
             indicator_type=req_body["indicator_type"],
             condition=condition,
             config=rsi_config,
-            description=req_body.get("description", f"{symbol} {indicator_type} {condition} alert"),
+            description=req_body.get("description", f"{symbol} {indicator_type} threshold monitoring alert"),
             triggers=triggers,
             enabled=req_body.get("enabled", True),
             created_date=datetime.now().isoformat(),
@@ -207,7 +184,7 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
         entity = alert.to_table_entity()
         indicator_table.upsert_entity(entity)
         
-        app_logger.info(f"Created indicator alert: {alert.id} for {alert.symbol} {alert.indicator_type} {alert.condition}")
+        app_logger.info(f"Created indicator alert: {alert.id} for {alert.symbol} {alert.indicator_type} threshold monitoring")
         
         # Return success response
         response_data = {

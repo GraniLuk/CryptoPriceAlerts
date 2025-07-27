@@ -1092,12 +1092,11 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 ```http
 POST /api/create_indicator_alert
 
-# RSI Overbought Alert
+# RSI Threshold Monitoring Alert (NEW - No condition parameter required)
 {
     "symbol": "BTC",
     "indicator_type": "rsi",
-    "condition": "overbought",
-    "description": "BTC RSI overbought",
+    "description": "BTC RSI threshold monitoring - all crossovers",
     "config": {
         "period": 14,
         "overbought_level": 75,
@@ -1115,19 +1114,28 @@ POST /api/create_indicator_alert
     ]
 }
 
-# RSI Crossover Alert
+# ETH RSI Alert with Standard Levels
 {
     "symbol": "ETH",
     "indicator_type": "rsi",
-    "condition": "crossover_oversold",
-    "description": "ETH RSI crossed below oversold",
+    "description": "ETH RSI threshold monitoring",
     "config": {
         "period": 21,
-        "oversold_level": 20,
+        "overbought_level": 70,
+        "oversold_level": 30,
         "timeframe": "15m"
     }
 }
 ```
+
+**Important Changes:**
+- `condition` parameter is **no longer required** and will be ignored if provided
+- All RSI alerts now automatically monitor for **any threshold crossover**:
+  - RSI crosses above overbought level
+  - RSI crosses below oversold level
+  - RSI exits overbought zone (crosses back below overbought)
+  - RSI exits oversold zone (crosses back above oversold)
+- `triggered_date` is **NOT automatically set** - manual control required for stopping monitoring
 
 #### Remove Indicator Alert
 ```http
