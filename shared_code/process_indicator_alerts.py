@@ -2,12 +2,67 @@ from shared_code.table_storage import AlertTableStorage
 from shared_code.alert_models import IndicatorAlert
 from shared_code.indicators.rsi_calculator import RSICalculator
 from shared_code.utils import send_telegram_message
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 from telegram_logging_handler import app_logger
 
+def should_check_timeframe(timeframe: str) -> bool:
+    """
+    Determine if it's the right time to check alerts for a given timeframe.
+    Returns True if we're within 5 minutes after a new candle should have formed.
+    """
+    try:
+        now = datetime.now(timezone.utc)
+        
+        # Map timeframe to minutes
+        timeframe_minutes = {
+            "1m": 1,
+            "3m": 3,
+            "5m": 5,
+            "15m": 15,
+            "30m": 30,
+            "1h": 60,
+            "2h": 120,
+            "4h": 240,
+            "6h": 360,
+            "8h": 480,
+            "12h": 720,
+            "1d": 1440,
+            "3d": 4320,
+            "1w": 10080
+        }
+        
+        interval_minutes = timeframe_minutes.get(timeframe.lower())
+        if not interval_minutes:
+            app_logger.warning(f"Unknown timeframe: {timeframe}, defaulting to check")
+            return True
+        
+        # For timeframes 5 minutes or less, always check (too frequent to optimize)
+        if interval_minutes <= 5:
+            return True
+        
+        # Calculate minutes since the epoch
+        epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
+        minutes_since_epoch = int((now - epoch).total_seconds() / 60)
+        
+        # Calculate how many minutes past the last candle boundary we are
+        minutes_past_boundary = minutes_since_epoch % interval_minutes
+        
+        # Check if we're within 5 minutes after a new candle boundary
+        # This gives enough time for the new candle data to be available
+        is_time_to_check = minutes_past_boundary <= 5
+        
+        if not is_time_to_check:
+            app_logger.debug(f"Skipping {timeframe} check - {minutes_past_boundary} minutes past boundary (waiting for ≤5 minutes)")
+        
+        return is_time_to_check
+        
+    except Exception as e:
+        app_logger.error(f"Error checking timeframe timing for {timeframe}: {e}")
+        return True  # Default to checking if there's an error
+
 async def process_indicator_alerts():
-    """Process all indicator-based alerts"""
+    """Process all indicator-based alerts, but only when it's time for new candle data"""
     try:
         table_storage = AlertTableStorage()
         
@@ -29,26 +84,53 @@ async def process_indicator_alerts():
             app_logger.info("No active indicator alerts found")
             return
         
-        app_logger.info(f"Processing {len(alerts)} indicator alerts")
-        
-        any_alert_triggered = False
-        
+        # Group alerts by timeframe to optimize checking
+        alerts_by_timeframe = {}
         for alert_entity in alerts:
             try:
                 alert = IndicatorAlert.from_table_entity(alert_entity)
+                timeframe = alert.config.get("timeframe", "5m")
                 
-                if alert.indicator_type == "rsi":
-                    triggered = await process_rsi_alert(alert)
-                    if triggered:
-                        # Note: triggered_date is not automatically set - manual control required
-                        any_alert_triggered = True
-                        app_logger.info(f"RSI alert triggered: {alert.id}")
-                else:
-                    app_logger.warning(f"Unknown indicator type: {alert.indicator_type}")
-                    
+                if timeframe not in alerts_by_timeframe:
+                    alerts_by_timeframe[timeframe] = []
+                alerts_by_timeframe[timeframe].append(alert)
+                
             except Exception as e:
-                app_logger.error(f"Error processing indicator alert {alert_entity.get('RowKey', 'unknown')}: {e}")
+                app_logger.error(f"Error parsing alert {alert_entity.get('RowKey', 'unknown')}: {e}")
                 continue
+        
+        app_logger.info(f"Found alerts for timeframes: {list(alerts_by_timeframe.keys())}")
+        
+        any_alert_triggered = False
+        alerts_processed = 0
+        alerts_skipped = 0
+        
+        for timeframe, timeframe_alerts in alerts_by_timeframe.items():
+            # Check if it's time to process alerts for this timeframe
+            if not should_check_timeframe(timeframe):
+                app_logger.debug(f"Skipping {len(timeframe_alerts)} alerts for timeframe {timeframe} - not time for new candle")
+                alerts_skipped += len(timeframe_alerts)
+                continue
+            
+            app_logger.info(f"Processing {len(timeframe_alerts)} alerts for timeframe {timeframe}")
+            
+            for alert in timeframe_alerts:
+                try:
+                    if alert.indicator_type == "rsi":
+                        triggered = await process_rsi_alert(alert)
+                        if triggered:
+                            # Note: triggered_date is not automatically set - manual control required
+                            any_alert_triggered = True
+                            app_logger.info(f"RSI alert triggered: {alert.id}")
+                        alerts_processed += 1
+                    else:
+                        app_logger.warning(f"Unknown indicator type: {alert.indicator_type}")
+                        
+                except Exception as e:
+                    app_logger.error(f"Error processing indicator alert {alert.id}: {e}")
+                    continue
+        
+        app_logger.info(f"Alerts processed: {alerts_processed}, skipped: {alerts_skipped}")
         
         if any_alert_triggered:
             app_logger.info("Indicator alerts processing completed with triggers")
@@ -62,12 +144,16 @@ async def process_rsi_alert(alert: IndicatorAlert) -> bool:
     """Process a single RSI alert - triggers on any threshold crossover"""
     try:
         config = alert.config
+        timeframe = config.get("timeframe", "5m")
+        
+        app_logger.debug(f"Checking RSI alert for {alert.symbol} on {timeframe} timeframe")
+        
         rsi_calculator = RSICalculator(period=config.get("period", 14))
         
         # Get RSI data for the symbol
         rsi_data = rsi_calculator.get_rsi_data(
             symbol=alert.symbol,
-            timeframe=config.get("timeframe", "5m"),
+            timeframe=timeframe,
             overbought=config.get("overbought_level", 70),
             oversold=config.get("oversold_level", 30)
         )
@@ -108,7 +194,7 @@ async def process_rsi_alert(alert: IndicatorAlert) -> bool:
             # Add additional RSI information
             message += f"Previous RSI: {rsi_data.previous_value:.2f}\n"
             message += f"Trend: {rsi_data.trend.upper()}\n"
-            message += f"Timeframe: {config.get('timeframe', '5m')}\n"
+            message += f"Timeframe: {timeframe}\n"
             message += f"Description: {alert.description}"
             
             # Send Telegram notification
