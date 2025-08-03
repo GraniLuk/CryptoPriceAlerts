@@ -6,6 +6,7 @@ import azure.functions as func
 from shared_code.utils import get_alerts_from_azure
 from shared_code.table_storage import AlertTableStorage
 from shared_code.alert_models import IndicatorAlert
+from shared_code.current_value_service import CurrentValueService
 from telegram_logging_handler import app_logger
 
 
@@ -111,28 +112,70 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
         
         logging.info(f"Total alerts after filtering: {len(all_alerts)}")
         
+        # Initialize current value service
+        current_value_service = CurrentValueService()
+        
+        # Enhance alerts with current values
+        enhanced_alerts = []
+        
+        for alert in all_alerts:
+            try:
+                enhanced_alert = alert.copy()
+                
+                if alert.get("alert_type") == "price":
+                    if alert.get("type") == "ratio":
+                        # Add current ratio value
+                        current_value = current_value_service.get_ratio_alert_current_value(
+                            alert["symbol1"], alert["symbol2"]
+                        )
+                        enhanced_alert["current_value"] = current_value
+                    else:
+                        # Add current price value
+                        current_value = current_value_service.get_single_alert_current_value(
+                            alert["symbol"]
+                        )
+                        enhanced_alert["current_value"] = current_value
+                        
+                elif alert.get("alert_type") == "indicator":
+                    # Add current indicator value
+                    current_value = current_value_service.get_indicator_alert_current_value(
+                        alert["symbol"], 
+                        alert["indicator_type"], 
+                        alert["config"]
+                    )
+                    enhanced_alert["current_value"] = current_value
+                
+                enhanced_alerts.append(enhanced_alert)
+                
+            except Exception as e:
+                logging.warning(f"Failed to enhance alert {alert.get('id', 'unknown')} with current value: {e}")
+                enhanced_alerts.append(alert)  # Add without enhancement
+        
         # Legacy price alerts count for backward compatibility
-        price_alerts_count = len([alert for alert in all_alerts if alert.get("alert_type") == "price"])
-        logging.info(f"Filtered to {price_alerts_count} non-triggered price alerts")
-
-        # Legacy price alerts count for backward compatibility
-        price_alerts_count = len([alert for alert in all_alerts if alert.get("alert_type") == "price"])
+        price_alerts_count = len([alert for alert in enhanced_alerts if alert.get("alert_type") == "price"])
         logging.info(f"Filtered to {price_alerts_count} non-triggered price alerts")
 
         # Build response message for backward compatibility
         message = "📊 Current Alerts:\n\n"
 
         # Group price alerts by type for display
-        price_alerts_for_display = [a for a in all_alerts if a.get("alert_type") == "price"]
+        price_alerts_for_display = [a for a in enhanced_alerts if a.get("alert_type") == "price"]
         single_alerts = [a for a in price_alerts_for_display if a.get("type") == "single"]
         ratio_alerts = [a for a in price_alerts_for_display if a.get("type") == "ratio"]
 
         if single_alerts:
             message += "🎯 Single Symbol Price Alerts:\n"
             for alert in single_alerts:
-                message += f"Symbol: ${alert['symbol']}\n"
-                message += f"Price: ${alert['price']}\n"
-                message += f"Operator: {alert['operator']}\n"
+                message += f"Symbol: {alert['symbol']}\n"
+                message += f"Target Price: ${alert['price']} {alert['operator']}\n"
+                
+                # Add current value to message
+                if "current_value" in alert and alert["current_value"].get("current_price"):
+                    current = alert["current_value"]
+                    message += f"Current Price: ${current['current_price']:.4f}\n"
+                    if "price_range" in current:
+                        message += f"24h Range: ${current['price_range']['low']:.4f}-${current['price_range']['high']:.4f}\n"
+                
                 message += f"Description: {alert['description']}\n"
 
                 # Display triggers if present
@@ -162,8 +205,14 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
             message += "\n📈 Ratio Price Alerts:\n"
             for alert in ratio_alerts:
                 message += f"Pair: {alert['symbol1']}/{alert['symbol2']}\n"
-                message += f"Ratio: {alert['price']}\n"
-                message += f"Operator: {alert['operator']}\n"
+                message += f"Target Ratio: {alert['price']} {alert['operator']}\n"
+                
+                # Add current ratio to message
+                if "current_value" in alert and alert["current_value"].get("current_ratio"):
+                    current = alert["current_value"]
+                    message += f"Current Ratio: {current['current_ratio']:.6f}\n"
+                    message += f"Prices: {alert['symbol1']}=${current['symbol1_price']:.4f}, {alert['symbol2']}=${current['symbol2_price']:.4f}\n"
+                
                 message += f"Description: {alert['description']}\n"
 
                 # Display triggers if present
@@ -189,27 +238,42 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
 
                 message += "---------------\n"
 
-        # Add indicator alerts to display
-        indicator_alerts_for_display = [a for a in all_alerts if a.get("alert_type") == "indicator"]
+        # Add indicator alerts with current values
+        indicator_alerts_for_display = [a for a in enhanced_alerts if a.get("alert_type") == "indicator"]
         if indicator_alerts_for_display:
             message += "\n📊 RSI Indicator Alerts:\n"
             for alert in indicator_alerts_for_display:
                 message += f"Symbol: {alert['symbol']}\n"
                 message += f"Indicator: {alert['indicator_type'].upper()}\n"
                 message += f"Condition: {alert['condition']}\n"
+                
+                # Add current RSI value
+                if "current_value" in alert and alert["current_value"].get("current_rsi"):
+                    current = alert["current_value"]
+                    message += f"Current RSI: {current['current_rsi']:.2f}\n"
+                    message += f"Current Price: ${current['current_price']:.4f}\n"
+                    if current.get("rsi_status"):
+                        status = current["rsi_status"]
+                        if status.get("is_overbought"):
+                            message += "Status: 🔴 Overbought\n"
+                        elif status.get("is_oversold"):
+                            message += "Status: 🟢 Oversold\n"
+                        else:
+                            message += f"Status: ⚪ Neutral\n"
+                
                 message += f"Config: RSI({alert['config']['period']}) - OB:{alert['config']['overbought_level']} OS:{alert['config']['oversold_level']}\n"
                 message += f"Timeframe: {alert['config']['timeframe']}\n"
                 message += f"Description: {alert['description']}\n"
                 message += f"Enabled: {'Yes' if alert['enabled'] else 'No'}\n"
                 message += "---------------\n"
 
-        # Return comprehensive response
+        # Return enhanced response
         response_data = {
-            "alerts": all_alerts,
+            "alerts": enhanced_alerts,  # Now includes current_value field
             "summary": {
-                "total_alerts": len(all_alerts),
-                "price_alerts": len([a for a in all_alerts if a.get("alert_type") == "price"]),
-                "indicator_alerts": len([a for a in all_alerts if a.get("alert_type") == "indicator"]),
+                "total_alerts": len(enhanced_alerts),
+                "price_alerts": len([a for a in enhanced_alerts if a.get("alert_type") == "price"]),
+                "indicator_alerts": len([a for a in enhanced_alerts if a.get("alert_type") == "indicator"]),
                 "filters_applied": {
                     "type": alert_type,
                     "symbol": symbol_filter,

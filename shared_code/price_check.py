@@ -9,6 +9,17 @@ import requests
 from shared_code.price_cache import price_cache
 from telegram_logging_handler import app_logger
 
+# Global instance to avoid recreating connections
+_candle_manager = None
+
+def get_candle_manager():
+    """Get or create candle manager instance"""
+    global _candle_manager
+    if _candle_manager is None:
+        from shared_code.candle_data_manager import CandleDataManager
+        _candle_manager = CandleDataManager()
+    return _candle_manager
+
 
 @dataclass
 class CandleData:
@@ -100,8 +111,15 @@ def get_crypto_price(symbol):
     return price
 
 
-def get_crypto_candle(symbol) -> Optional[CandleData]:
-    """Get 5-minute candle data for a symbol with caching"""
+def get_crypto_candle(symbol, timeframe="5m", auto_save=True) -> Optional[CandleData]:
+    """
+    Get crypto candle data from Bybit API with automatic saving to Azure Table Storage
+    
+    Args:
+        symbol: The crypto symbol (e.g., 'BTCUSDT')
+        timeframe: The timeframe for the candle (default: '5m')
+        auto_save: Whether to automatically save to Azure Table Storage (default: True)
+    """
     # First check the cache for the current price - we'll still need to
     # fetch the candle data for high/low, but this avoids duplicate API calls
     cached_price = price_cache.get_price(symbol)
@@ -121,6 +139,36 @@ def get_crypto_candle(symbol) -> Optional[CandleData]:
     # If we got valid candle data, cache the close price
     if candle:
         price_cache.set_price(symbol, candle.close)
+        
+        # Auto-save to Azure Table Storage if enabled
+        if auto_save:
+            try:
+                candle_manager = get_candle_manager()
+                
+                # Create CandleData object for storage
+                from shared_code.alert_models import CandleData as CandleDataModel
+                candle_data_obj = CandleDataModel(
+                    symbol=symbol.upper(),
+                    timeframe=timeframe,
+                    timestamp=datetime.now(),
+                    open=candle.open,
+                    high=candle.high,
+                    low=candle.low,
+                    close=candle.close,
+                    volume=0.0  # Volume not available from legacy methods
+                )
+                
+                # Save to storage
+                success = candle_manager.store_current_candle(symbol.upper(), candle_data_obj, timeframe)
+                if success:
+                    app_logger.debug(f"Auto-saved candle data for {symbol} ({timeframe})")
+                else:
+                    app_logger.warning(f"Failed to auto-save candle data for {symbol}")
+                    
+            except Exception as save_error:
+                app_logger.error(f"Error auto-saving candle for {symbol}: {save_error}")
+                # Don't fail the main function if save fails
+        
     # If we have a cached price but couldn't get candle data, create a candle with the cached price
     elif cached_price is not None:
         app_logger.info(f"Using cached price to create candle for {symbol}: {cached_price}")

@@ -36,9 +36,9 @@ async def process_alerts():
             # Handle different alert types
             if alert.get("type") == "ratio":
                 # For ratio alerts, we need prices for both symbols
-                # Get candle data for both symbols
-                candle1 = get_crypto_candle(alert["symbol1"])
-                candle2 = get_crypto_candle(alert["symbol2"])
+                # Get candle data for both symbols (auto_save=True by default)
+                candle1 = get_crypto_candle(alert["symbol1"])  # auto_save=True by default
+                candle2 = get_crypto_candle(alert["symbol2"])  # auto_save=True by default
 
                 if candle1 and candle2:
                     # When checking ratios, we need to consider the most extreme cases
@@ -100,7 +100,7 @@ async def process_alerts():
             else:
                 # Handle standard single symbol alerts
                 alert["symbol"] = alert["symbol"].upper()
-                candle = get_crypto_candle(alert["symbol"])
+                candle = get_crypto_candle(alert["symbol"])  # auto_save=True by default
 
                 if candle:
                     # Check if candle meets condition
