@@ -5,6 +5,10 @@ from shared_code.utils import send_telegram_message
 from datetime import datetime, timezone
 import os
 from telegram_logging_handler import app_logger
+from shared_code.current_value_service import CurrentValueService
+
+# Global singleton for current value service to avoid repeated initialisation
+_current_value_service = CurrentValueService()
 
 def should_check_timeframe(timeframe: str) -> bool:
     """
@@ -157,6 +161,8 @@ async def process_rsi_alert(alert: IndicatorAlert) -> bool:
             overbought=config.get("overbought_level", 70),
             oversold=config.get("oversold_level", 30)
         )
+        # Fetch current price (non-blocking style; service handles fallbacks)
+        current_price_info = _current_value_service.get_single_alert_current_value(alert.symbol)
         
         if not rsi_data:
             app_logger.warning(f"Could not get RSI data for {alert.symbol}")
@@ -191,7 +197,16 @@ async def process_rsi_alert(alert: IndicatorAlert) -> bool:
             message += f"🔄 RSI exited oversold zone: {rsi_data.value:.2f}\n"
         
         if condition_met:
+            # Add current price details if available
+            if current_price_info.get("current_price") is not None:
+                message += f"Current Price: ${current_price_info['current_price']:.4f}\n"
+                price_range = current_price_info.get("price_range") or {}
+                if price_range.get("low") is not None and price_range.get("high") is not None:
+                    message += (
+                        f"Recent Range: ${price_range['low']:.4f}-${price_range['high']:.4f}\n"
+                    )
             # Add additional RSI information
+            message += f"Current RSI: {rsi_data.value:.2f}\n"
             message += f"Previous RSI: {rsi_data.previous_value:.2f}\n"
             message += f"Trend: {rsi_data.trend.upper()}\n"
             message += f"Timeframe: {timeframe}\n"
