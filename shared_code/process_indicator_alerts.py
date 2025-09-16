@@ -145,13 +145,13 @@ async def process_indicator_alerts():
         app_logger.error(f"Error processing indicator alerts: {e}")
 
 async def process_rsi_alert(alert: IndicatorAlert) -> bool:
-    """Process a single RSI alert - triggers on any threshold crossover"""
+    """Process a single RSI alert - triggers on any threshold crossover (all conditions)"""
     try:
         config = alert.config
         timeframe = config.get("timeframe", "5m")
-        
+
         app_logger.debug(f"Checking RSI alert for {alert.symbol} on {timeframe} timeframe")
-        
+
         rsi_calculator = RSICalculator(period=config.get("period", 14))
         
         # Get RSI data for the symbol
@@ -168,34 +168,58 @@ async def process_rsi_alert(alert: IndicatorAlert) -> bool:
             app_logger.warning(f"Could not get RSI data for {alert.symbol}")
             return False
         
-        condition_met = False
-        message = f"🔔 RSI Alert for {alert.symbol}!\n"
-        
-        # Check for any RSI threshold crossovers
         overbought_level = config.get("overbought_level", 70)
         oversold_level = config.get("oversold_level", 30)
-        
-        # RSI crossed above overbought level
-        if (rsi_data.value >= overbought_level and 
-            rsi_data.previous_value < overbought_level):
+
+        # Determine current zone (independent from trend which is rise/fall/neutral)
+        zone = (
+            "overbought" if rsi_data.value >= overbought_level else
+            "oversold" if rsi_data.value <= oversold_level else
+            "neutral"
+        )
+
+        # Ignore stored condition; trigger on any relevant pattern
+        prev_valid = rsi_data.previous_value > 0  # first calculation may set previous to 0
+        crossover_overbought = prev_valid and rsi_data.previous_value < overbought_level and rsi_data.value >= overbought_level
+        crossover_oversold = prev_valid and rsi_data.previous_value > oversold_level and rsi_data.value <= oversold_level
+        exit_overbought = prev_valid and rsi_data.previous_value >= overbought_level and rsi_data.value < overbought_level
+        exit_oversold = prev_valid and rsi_data.previous_value <= oversold_level and rsi_data.value > oversold_level
+
+        static_overbought = rsi_data.value >= overbought_level
+        static_oversold = rsi_data.value <= oversold_level
+
+        condition_met = False
+        condition_type = ""
+        message = f"🔔 RSI Alert for {alert.symbol}!\n"
+
+        # Unified logic: trigger on any transition first (crossover or exit)
+        if crossover_overbought:
             condition_met = True
-            message += f"🔺 RSI crossed above overbought level ({overbought_level}): {rsi_data.value:.2f}\n"
-        # RSI crossed below oversold level
-        elif (rsi_data.value <= oversold_level and 
-              rsi_data.previous_value > oversold_level):
+            condition_type = "crossover_overbought"
+            message += f"🔺 RSI crossed ABOVE overbought level ({overbought_level}): {rsi_data.value:.2f}\n"
+        elif crossover_oversold:
             condition_met = True
-            message += f"🔻 RSI crossed below oversold level ({oversold_level}): {rsi_data.value:.2f}\n"
-        # RSI exited overbought (crossed back below overbought level)
-        elif (rsi_data.value < overbought_level and 
-              rsi_data.previous_value >= overbought_level):
+            condition_type = "crossover_oversold"
+            message += f"🔻 RSI crossed BELOW oversold level ({oversold_level}): {rsi_data.value:.2f}\n"
+        elif exit_overbought:
             condition_met = True
-            message += f"🔄 RSI exited overbought zone: {rsi_data.value:.2f}\n"
-        # RSI exited oversold (crossed back above oversold level)
-        elif (rsi_data.value > oversold_level and 
-              rsi_data.previous_value <= oversold_level):
+            condition_type = "exit_overbought"
+            message += f"🔄 RSI EXITED overbought zone (<{overbought_level}): {rsi_data.value:.2f}\n"
+        elif exit_oversold:
             condition_met = True
-            message += f"🔄 RSI exited oversold zone: {rsi_data.value:.2f}\n"
-        
+            condition_type = "exit_oversold"
+            message += f"🔄 RSI EXITED oversold zone (>{oversold_level}): {rsi_data.value:.2f}\n"
+        else:
+            # If no transition happened this evaluation window, optionally emit static state alerts
+            if static_overbought:
+                condition_met = True
+                condition_type = "overbought"
+                message += f"🔺 RSI remains OVERBOUGHT (≥{overbought_level}): {rsi_data.value:.2f}\n"
+            elif static_oversold:
+                condition_met = True
+                condition_type = "oversold"
+                message += f"🔻 RSI remains OVERSOLD (≤{oversold_level}): {rsi_data.value:.2f}\n"
+
         if condition_met:
             # Add current price details if available
             if current_price_info.get("current_price") is not None:
@@ -209,6 +233,7 @@ async def process_rsi_alert(alert: IndicatorAlert) -> bool:
             message += f"Current RSI: {rsi_data.value:.2f}\n"
             message += f"Previous RSI: {rsi_data.previous_value:.2f}\n"
             message += f"Trend: {rsi_data.trend.upper()}\n"
+            message += f"Zone: {zone.upper()}\n"
             message += f"Timeframe: {timeframe}\n"
             message += f"Description: {alert.description}"
             
@@ -228,20 +253,14 @@ async def process_rsi_alert(alert: IndicatorAlert) -> bool:
             except Exception as e:
                 app_logger.error(f"Error sending Telegram message for alert {alert.id}: {e}")
             
-            # Determine which condition was triggered for logging
-            if rsi_data.value >= overbought_level and rsi_data.previous_value < overbought_level:
-                condition_type = "crossover_overbought"
-            elif rsi_data.value <= oversold_level and rsi_data.previous_value > oversold_level:
-                condition_type = "crossover_oversold"
-            elif rsi_data.value < overbought_level and rsi_data.previous_value >= overbought_level:
-                condition_type = "exit_overbought"
-            else:
-                condition_type = "exit_oversold"
-                
-            app_logger.info(f"RSI alert triggered for {alert.symbol}: {condition_type} at {rsi_data.value:.2f}")
+            app_logger.info(f"RSI alert triggered for {alert.symbol}: {condition_type} at {rsi_data.value:.2f} (zone={zone}, prev={rsi_data.previous_value:.2f})")
             return True
         else:
-            app_logger.debug(f"No RSI threshold crossover for {alert.symbol}: RSI={rsi_data.value:.2f}, Previous={rsi_data.previous_value:.2f}")
+            app_logger.debug(
+                f"RSI alert not triggered for {alert.symbol}: no transition or static zone condition met. "
+                f"RSI={rsi_data.value:.2f} prev={rsi_data.previous_value:.2f} zone={zone} "
+                f"(overbought≥{overbought_level} oversold≤{oversold_level})"
+            )
         
         return False
         
