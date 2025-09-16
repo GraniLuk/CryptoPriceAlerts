@@ -209,16 +209,7 @@ async def process_rsi_alert(alert: IndicatorAlert) -> bool:
             condition_met = True
             condition_type = "exit_oversold"
             message += f"🔄 RSI EXITED oversold zone (>{oversold_level}): {rsi_data.value:.2f}\n"
-        else:
-            # If no transition happened this evaluation window, optionally emit static state alerts
-            if static_overbought:
-                condition_met = True
-                condition_type = "overbought"
-                message += f"🔺 RSI remains OVERBOUGHT (≥{overbought_level}): {rsi_data.value:.2f}\n"
-            elif static_oversold:
-                condition_met = True
-                condition_type = "oversold"
-                message += f"🔻 RSI remains OVERSOLD (≤{oversold_level}): {rsi_data.value:.2f}\n"
+        # No static zone alerting: user opted to monitor zones manually.
 
         if condition_met:
             # Add current price details if available
