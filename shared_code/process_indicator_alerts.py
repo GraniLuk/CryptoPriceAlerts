@@ -51,13 +51,33 @@ def should_check_timeframe(timeframe: str) -> bool:
         
         # Calculate how many minutes past the last candle boundary we are
         minutes_past_boundary = minutes_since_epoch % interval_minutes
-        
-        # Check if we're within 5 minutes after a new candle boundary
-        # This gives enough time for the new candle data to be available
-        is_time_to_check = minutes_past_boundary <= 5
-        
-        if not is_time_to_check:
-            app_logger.debug(f"Skipping {timeframe} check - {minutes_past_boundary} minutes past boundary (waiting for ≤5 minutes)")
+
+        # Determine gating rule per timeframe
+        if interval_minutes == 60:
+            # For 1h timeframe: wait a few minutes after the hour to ensure candle is finalized
+            try:
+                delay = int(os.environ.get("INDICATOR_1H_DELAY_MINUTES", "3"))  # default 3 minutes
+            except ValueError:
+                delay = 3
+            try:
+                window = int(os.environ.get("INDICATOR_BOUNDARY_WINDOW_MINUTES", "5"))  # default 5-minute window
+            except ValueError:
+                window = 5
+            # Permit checks only within [delay, delay+window)
+            is_time_to_check = delay <= minutes_past_boundary < (delay + window)
+            if not is_time_to_check:
+                app_logger.debug(
+                    f"Skipping {timeframe} check - {minutes_past_boundary} minutes past boundary "
+                    f"(checking window {delay}–{delay + window - 1} mins after boundary)"
+                )
+        else:
+            # Default rule: within first 5 minutes after the boundary
+            is_time_to_check = minutes_past_boundary < 5
+            if not is_time_to_check:
+                app_logger.debug(
+                    f"Skipping {timeframe} check - {minutes_past_boundary} minutes past boundary "
+                    f"(only checking within first 5 mins after boundary)"
+                )
         
         return is_time_to_check
         
