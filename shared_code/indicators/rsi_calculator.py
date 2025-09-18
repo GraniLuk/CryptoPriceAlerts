@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from typing import List, Dict, Optional
 from dataclasses import dataclass
+from datetime import datetime
 from telegram_logging_handler import app_logger
 
 @dataclass
@@ -11,6 +12,10 @@ class RSIData:
     is_oversold: bool
     previous_value: float
     trend: str  # "rising", "falling", "neutral"
+    # Additional diagnostic fields for richer logging/traceability
+    zone: str = "neutral"  # "overbought" | "oversold" | "neutral"
+    close_time: Optional[datetime] = None
+    previous_close_time: Optional[datetime] = None
 
 class RSICalculator:
     def __init__(self, period: int = 14):
@@ -75,8 +80,9 @@ class RSICalculator:
                 app_logger.warning(f"Could not ensure sufficient candle data for {symbol} {timeframe}")
                 return None
             
-            # Get closing prices from stored candle data
-            prices = self.candle_manager.get_closing_prices(symbol, timeframe, required_candles)
+            # Get historical candles and closing prices for timestamps and RSI calculation
+            candles = self.candle_manager.get_historical_candles(symbol, timeframe, required_candles)
+            prices = [c.close for c in candles]
             
             if len(prices) < self.period + 1:
                 app_logger.warning(f"Insufficient price data for RSI calculation: {len(prices)} < {self.period + 1}")
@@ -102,16 +108,35 @@ class RSICalculator:
                     trend = "rising"
                 elif diff < -1:  # RSI decreased by more than 1 point
                     trend = "falling"
+            # Determine zone (based on thresholds)
+            zone = (
+                "overbought" if current_rsi >= overbought else
+                "oversold" if current_rsi <= oversold else
+                "neutral"
+            )
+
+            # Determine candle close timestamps
+            close_time = candles[-1].timestamp if candles else None
+            previous_close_time = candles[-2].timestamp if len(candles) >= 2 else None
             
             rsi_data = RSIData(
                 value=current_rsi,
                 is_overbought=current_rsi >= overbought,
                 is_oversold=current_rsi <= oversold,
                 previous_value=previous_rsi or 0,
-                trend=trend
+                trend=trend,
+                zone=zone,
+                close_time=close_time,
+                previous_close_time=previous_close_time,
             )
-            
-            app_logger.info(f"RSI calculated for {symbol} {timeframe}: {current_rsi:.2f} ({trend})")
+
+            # Rich diagnostic logging to avoid confusion between trend vs zone
+            ct_str = close_time.isoformat() if close_time else "unknown_close_time"
+            prev_str = f"{previous_rsi:.2f}" if previous_rsi is not None else "N/A"
+            app_logger.info(
+                f"RSI calculated for {symbol} {timeframe} @ {ct_str}: {current_rsi:.2f} | prev={prev_str} | "
+                f"zone={zone} | trend={trend} | thresholds ob≥{overbought} os≤{oversold}"
+            )
             return rsi_data
             
         except Exception as e:
@@ -138,13 +163,22 @@ class RSICalculator:
                     trend = "rising"
                 elif diff < -1:
                     trend = "falling"
-            
+            # Determine zone
+            zone = (
+                "overbought" if current_rsi >= overbought else
+                "oversold" if current_rsi <= oversold else
+                "neutral"
+            )
+
             return RSIData(
                 value=current_rsi,
                 is_overbought=current_rsi >= overbought,
                 is_oversold=current_rsi <= oversold,
                 previous_value=previous_rsi or 0,
-                trend=trend
+                trend=trend,
+                zone=zone,
+                close_time=None,
+                previous_close_time=None,
             )
             
         except Exception as e:

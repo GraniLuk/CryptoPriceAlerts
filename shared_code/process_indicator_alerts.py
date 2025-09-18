@@ -178,6 +178,19 @@ async def process_rsi_alert(alert: IndicatorAlert) -> bool:
             "neutral"
         )
 
+        # Log near-threshold diagnostics to analyze intrabar vs close behavior
+        try:
+            if abs(rsi_data.value - overbought_level) <= 1 or abs(rsi_data.value - oversold_level) <= 1:
+                _ct = getattr(rsi_data, "close_time", None)
+                ct_str = _ct.isoformat() if _ct else "unknown_close_time"
+                pct = ((rsi_data.value - overbought_level) / max(overbought_level, 1)) * 100 if rsi_data.value >= overbought_level else ((oversold_level - rsi_data.value) / max(oversold_level, 1)) * 100
+                app_logger.info(
+                    f"[NEAR-THRESHOLD] {alert.symbol} {timeframe} @ {ct_str}: RSI={rsi_data.value:.2f} prev={rsi_data.previous_value:.2f} "
+                    f"zone={zone} ob≥{overbought_level} os≤{oversold_level} deltaPct≈{pct:.2f}%"
+                )
+        except Exception:
+            pass
+
         # Ignore stored condition; trigger on any relevant pattern
         prev_valid = rsi_data.previous_value > 0  # first calculation may set previous to 0
         crossover_overbought = prev_valid and rsi_data.previous_value < overbought_level and rsi_data.value >= overbought_level
@@ -244,13 +257,25 @@ async def process_rsi_alert(alert: IndicatorAlert) -> bool:
             except Exception as e:
                 app_logger.error(f"Error sending Telegram message for alert {alert.id}: {e}")
             
-            app_logger.info(f"RSI alert triggered for {alert.symbol}: {condition_type} at {rsi_data.value:.2f} (zone={zone}, prev={rsi_data.previous_value:.2f})")
+            _ct = getattr(rsi_data, "close_time", None)
+            ct_str = _ct.isoformat() if _ct else "unknown_close_time"
+            app_logger.info(
+                f"RSI alert triggered for {alert.symbol}: {condition_type} at {rsi_data.value:.2f} "
+                f"(zone={zone}, prev={rsi_data.previous_value:.2f}, close={ct_str}, tf={timeframe})"
+            )
             return True
         else:
+            _ct = getattr(rsi_data, "close_time", None)
+            ct_str = _ct.isoformat() if _ct else "unknown_close_time"
+            prev_zone = (
+                "overbought" if rsi_data.previous_value >= overbought_level else
+                "oversold" if rsi_data.previous_value <= oversold_level else
+                "neutral"
+            ) if rsi_data.previous_value > 0 else "unknown"
             app_logger.debug(
-                f"RSI alert not triggered for {alert.symbol}: no transition or static zone condition met. "
-                f"RSI={rsi_data.value:.2f} prev={rsi_data.previous_value:.2f} zone={zone} "
-                f"(overbought≥{overbought_level} oversold≤{oversold_level})"
+                f"RSI alert not triggered for {alert.symbol} @ {ct_str} ({timeframe}): no transition at close. "
+                f"currRSI={rsi_data.value:.2f} currZone={zone} prevRSI={rsi_data.previous_value:.2f} prevZone={prev_zone} "
+                f"thresholds ob≥{overbought_level} os≤{oversold_level}"
             )
         
         return False
